@@ -2,14 +2,10 @@
 
 use Slim\App;
 
+require_once __DIR__ . '/api.php';
+
 return function (App $app) {
     $container = $app->getContainer();
-
-    // view renderer
-    $container['renderer'] = function ($c) {
-        $settings = $c->get('settings')['renderer'];
-        return new \Slim\Views\PhpRenderer($settings['template_path']);
-    };
 
     // monolog
     $container['logger'] = function ($c) {
@@ -18,5 +14,21 @@ return function (App $app) {
         $logger->pushProcessor(new \Monolog\Processor\UidProcessor());
         $logger->pushHandler(new \Monolog\Handler\StreamHandler($settings['path'], $settings['level']));
         return $logger;
+    };
+
+    // database
+    $container['db'] = function ($c) {
+        $settings = $c->get('settings')['db'];
+        $server = "mysql:host=".$settings['host'].";dbname=".$settings['dbname'];
+        $db = new PDO($server, $settings['user'], $settings['pass']);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        return $db;
+    };
+
+    // api
+    $container['api'] = function ($c) {
+        $api = new API($c);
+        return $api;
     };
 };

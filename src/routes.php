@@ -1,17 +1,21 @@
 <?php
 
-use Slim\App;
-use Slim\Http\Request;
-use Slim\Http\Response;
+use \Slim\App;
+
+// routes
+require_once __DIR__ . '/Routes/Auth.php';
+require_once __DIR__ . '/Routes/Users.php';
 
 return function (App $app) {
-    $container = $app->getContainer();
+    // authentication
+    $app->group('/auth', function(App $app) {
+        $app->post('/register', '\Auth:register');
+        $app->post('/login', '\Auth:login');
+        $app->get('/validate', '\Auth:validate');
+    });
 
-    $app->get('/[{name}]', function (Request $request, Response $response, array $args) use ($container) {
-        // Sample log message
-        $container->get('logger')->info("Slim-Skeleton '/' route");
-
-        // Render index view
-        return $container->get('renderer')->render($response, 'index.phtml', $args);
+    // users
+    $app->group('/users', function(App $app) {
+        $app->get('/[{id}]', '\Users:get');
     });
 };
