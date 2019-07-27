@@ -8,8 +8,9 @@ return function (App $app) {
         "ignore"    => ["/auth/login", "/auth/register"],
         "secret"    => $app->getContainer()->get('settings')['hash']['jwt'],
         "attribute" => "token",
+		"secure"	=> false,
         "error"     => function (Response $response) {
-            return $response->withJson(['status' => -1, 'message'  => 'Authentication failed.']);
+            return $response->withJson(['success' => false, 'message'  => 'Authentication failed.']);
         }
     ]));
 };

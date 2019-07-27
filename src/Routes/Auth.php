@@ -23,9 +23,10 @@ class Auth {
         // params
         $username = $request->getParsedBodyParam('username');
         $password = $request->getParsedBodyParam('password');
+        $fullname = $request->getParsedBodyParam('fullname');
 
-        if (empty($username) || empty($password))
-            return $this->api->fail('Username or Password is empty');
+        if (empty($username) || empty($password) || empty($fullname))
+            return $this->api->fail('Some input is empty');
         
         if (strlen($username) < 6 || strlen($password) < 6)
             return $this->api->fail('Username or Password is weak');
@@ -42,11 +43,12 @@ class Auth {
             return $this->api->fail('Username already taken');
 
         // create user
-        $stmt = $this->db->prepare("INSERT INTO users (username, password, registered) VALUES (:user, :pass, :reg)");
+        $stmt = $this->db->prepare("INSERT INTO users (username, password, registered, name) VALUES (:user, :pass, :reg, :name)");
         $result = $stmt->execute([
             ':user' => $username,
             ':pass' => $password,
-            ':reg'	=> time()
+            ':reg'	=> time(),
+            ':name' => $fullname
         ]);
 
         if (!$result)

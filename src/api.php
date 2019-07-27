@@ -17,14 +17,14 @@ class API {
 
     function success($result = null) {
         return $this->response->withJson(array(
-            'error'     => false,
+            'success'   => true,
             'result'    => $result
         ));
     }
 
     function fail(string $message = '') {
         return $this->response->withJson(array(
-            'error'     => true,
+            'success'   => false,
             'message'   => empty($message) ? "Undefined" : $message
         ));
     }
