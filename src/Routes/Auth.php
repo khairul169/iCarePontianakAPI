@@ -21,78 +21,64 @@ class Auth {
 
     function register(Request $request, Response $response) {
         // params
-        $params = $request->getParsedBody();
-        $username = isset($params['username']) ? trim($params['username']) : null;
-        $password = isset($params['password']) ? trim($params['password']) : null;
+        $username = $request->getParsedBodyParam('username');
+        $password = $request->getParsedBodyParam('password');
 
         if (empty($username) || empty($password))
-            return $this->api->fail('Username or Password is empty.');
+            return $this->api->fail('Username or Password is empty');
         
         if (strlen($username) < 6 || strlen($password) < 6)
-            return $this->api->fail('Username or Password is weak.');
+            return $this->api->fail('Username or Password is weak');
         
         // generate password hash
         $password = $this->getPasswordHash($password);
 
         // check username
-        try {
-            $stmt = $this->db->prepare("SELECT id FROM users WHERE username=:user LIMIT 1");
-            $stmt->execute([':user' => $username]);
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE username=:user LIMIT 1");
+        $stmt->execute([':user' => $username]);
 
-            if ($stmt->fetch())
-                return $this->api->fail('Username already taken.');
-        } catch (Exception $e) {
-            $this->api->error($e->getMessage());
-        }
+        // username taken
+        if ($stmt->fetch())
+            return $this->api->fail('Username already taken');
 
         // create user
-        try {
-            $stmt = $this->db->prepare("INSERT INTO users (username, password, registered) VALUES (:user, :pass, :reg)");
-            $result = $stmt->execute([
-                ':user' => $username,
-                ':pass' => $password,
-                ':reg'	=> time()
-            ]);
+        $stmt = $this->db->prepare("INSERT INTO users (username, password, registered) VALUES (:user, :pass, :reg)");
+        $result = $stmt->execute([
+            ':user' => $username,
+            ':pass' => $password,
+            ':reg'	=> time()
+        ]);
 
-            if ($result) {
-                $userId = $this->db->lastInsertId();
-                $token = $this->generateToken($userId);
+        if (!$result)
+            return $this->api->fail('Cannot register user');
 
-                // return OK and access token
-                return $this->api->success(['token' => $token]);
-            }
-        } catch (Exception $e) {
-            $this->api->error($e->getMessage());
-        }
+        // generate user token
+        $userId = $this->db->lastInsertId();
+        $token = $this->generateToken($userId);
 
-        // can't handle request
-        return $this->api->fail();
+        // return user token
+        return $this->api->success(['token' => $token]);
     }
 
     function login(Request $request, Response $response) {
         // params
-        $params = $request->getParsedBody();
-        $username = isset($params['username']) ? trim($params['username']) : null;
-        $password = isset($params['password']) ? trim($params['password']) : null;
+        $username = $request->getParsedBodyParam('username');
+        $password = $request->getParsedBodyParam('password');
 
         if (empty($username) || empty($password))
-            return $this->api->fail('Username or Password is empty.');
+            return $this->api->fail('Username or Password is empty');
 
         // try login
-        try {
-            $stmt = $this->db->prepare("SELECT id, password FROM users WHERE username=:user LIMIT 1");
-            $stmt->execute([':user' => $username]);
-            $user = $stmt->fetch();
+        $stmt = $this->db->prepare("SELECT id, password FROM users WHERE username=:user LIMIT 1");
+        $stmt->execute([':user' => $username]);
+        $user = $stmt->fetch();
 
-            if (!$user)
-                return $this->api->fail('User not found.');
-        } catch (Exception $e) {
-            $this->api->error($e->getMessage());
-        }
+        if (!$user)
+            return $this->api->fail('User not found');
 
         // verify password hash
         if (!$this->verifyPassword($password, $user['password']))
-            return $this->api->fail('Wrong password.');
+            return $this->api->fail('Wrong password');
 
         // return token
         $token = $this->generateToken($user['id']);
@@ -105,23 +91,21 @@ class Auth {
 
         // token expired
         if (time() > (int) $token['exp'])
-            return $this->api->fail('Token expired.');
+            return $this->api->fail('Token expired');
         
-        try {
-            $stmt = $this->db->prepare("SELECT id FROM users WHERE id=:id LIMIT 1");
-            $stmt->execute([':id' => $userId]);
+        // get user
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE id=:id LIMIT 1");
+        $stmt->execute([':id' => $userId]);
 
-            $result = $stmt->fetch();
+        // fetch user
+        $result = $stmt->fetch();
 
-            // user exist
-            if ($result)
-                return $this->api->success(['id' => $result['id']]);
-        } catch (Exception $e) {
-            $this->api->error($e->getMessage());
-        }
-
-        // can't validate session
-        return $this->api->fail();
+        // token is invalid
+        if (!$result)
+            return $this->api->fail('Token invalid');
+        
+        // token is valid
+        return $this->api->success(['id' => $result['id']]);
     }
 
     private function getPasswordHash($password) {
