@@ -15,7 +15,7 @@ class API {
         $this->logger = $container->get('logger');
     }
 
-    function success($result) {
+    function success($result = null) {
         return $this->response->withJson(array(
             'error'     => false,
             'result'    => $result

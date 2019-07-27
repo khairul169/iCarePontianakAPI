@@ -16,6 +16,8 @@ return function (App $app) {
 
     // users
     $app->group('/users', function(App $app) {
-        $app->get('/[{id}]', '\Users:get');
+        $app->get('/', '\Users:get');
+        $app->get('/{id}', '\Users:getUser');
+        $app->patch('/', '\Users:setUserData');
     });
 };

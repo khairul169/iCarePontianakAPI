@@ -16,30 +16,65 @@ class Users {
     }
 
     function get(Request $request, Response $response, array $args) {
+        // get userid from token
         $userId = $request->getAttribute('token')['id'] ?: null;
 
+        // sql statement
+        $sql = "SELECT id, username, registered, role, name, phone FROM users WHERE id=:id";
+        $query = $this->db->prepare($sql);
+        $query->execute([':id' => $userId]);
+
+        // result
+        $result = $query->fetch();
+        return $result ? $this->api->success($result) : $this->api->fail("User not exists");
+    }
+
+    function getUser(Request $request, Response $response, array $args) {
         // args
-        $paramId = isset($args['id']) ? (int) $args['id'] : $userId;
+        $userId = isset($args['id']) ? (int) $args['id'] : $userId;
 
-        try {
-            // prepare statement
-            $query = $this->db->prepare("SELECT id, username, registered, role, name, phone FROM users WHERE id=:id");
-            $query->execute([':id' => $paramId]);
+        // sql statement
+        $sql = "SELECT id, username, registered, role, name, phone FROM users WHERE id=:id";
+        $query = $this->db->prepare($sql);
+        $query->execute([':id' => $userId]);
+
+        // result
+        $result = $query->fetch();
+        return $result ? $this->api->success($result) : $this->api->fail("User not exists");
+    }
+
+    function setUserData(Request $request, Response $response, array $args) {
+        // get userid from token
+        $userId = $request->getAttribute('token')['id'] ?: null;
+
+        // params
+        $key = $request->getParsedBodyParam('key');
+        $value = $request->getParsedBodyParam('value');
+
+        switch ($key) {
+            // set user name
+            case 'name':
+                $sql = 'name'; break;
             
-            // fetch user
-            $user = $query->fetch();
-
-            // return user data
-            if ($user)
-                return $this->api->success($user);
-            else
-                return $this->api->fail("User not exists.");
-        
-        } catch (Exception $e) {
-            $this->api->error($e->getMessage());
+            // set phone number
+            case 'phone':
+                $sql = 'phone'; break;
+            
+            default:
+                return $this->api->fail('Key not specified');
         }
 
-        return $this->api->fail();
+        // sql statement
+        $sql = "UPDATE users SET $sql=:val WHERE id=:id";
+        $query = $this->db->prepare($sql);
+        
+        // execute sql
+        $result = $query->execute([
+            ':val'  => $value,
+            ':id'   => $userId
+        ]);
+
+        return $result ? $this->api->success() : $this->api->fail("Failed updating user data");
     }
 }
 
