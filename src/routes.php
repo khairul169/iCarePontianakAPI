@@ -4,7 +4,8 @@ use \Slim\App;
 
 // routes
 require_once __DIR__ . '/Routes/Auth.php';
-require_once __DIR__ . '/Routes/Users.php';
+require_once __DIR__ . '/Routes/User.php';
+require_once __DIR__ . '/Routes/Service.php';
 
 return function (App $app) {
     // authentication
@@ -15,9 +16,16 @@ return function (App $app) {
     });
 
     // users
-    $app->group('/users', function(App $app) {
-        $app->get('/', '\Users:get');
-        $app->get('/{id}', '\Users:getUser');
-        $app->patch('/', '\Users:setUserData');
+    $app->group('/user', function(App $app) {
+        $app->get('/', '\User:get');
+        $app->get('/{id}', '\User:getUser');
+        $app->patch('/{type}', '\User:setData');
+    });
+
+    // service
+    $app->group('/service', function(App $app) {
+        $app->get('/', '\Service:getAll');
+        $app->get('/{id}', '\Service:get');
+        $app->post('/', '\Service:create');
     });
 };
