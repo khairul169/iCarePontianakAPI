@@ -107,7 +107,8 @@ class Auth {
             return $this->api->fail('Token invalid');
         
         // token is valid
-        return $this->api->success(['id' => $result['id']]);
+        $newToken = $this->generateToken((int) $result['id']);
+        return $this->api->success(['token' => $newToken]);
     }
 
     private function getPasswordHash($password) {
