@@ -25,7 +25,6 @@ return function (App $app) {
     // service
     $app->group('/service', function(App $app) {
         $app->get('/', '\Service:getAll');
-        $app->get('/{id}', '\Service:get');
         $app->post('/', '\Service:create');
     });
 };
