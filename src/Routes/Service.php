@@ -22,7 +22,7 @@ class Service {
         $this->assignAvailableService($userId);
 
         // fetch service
-        $sql = "SELECT * FROM service WHERE (user=:id OR taker=:id) AND status!='0'";
+        $sql = "SELECT * FROM service WHERE (user=:id OR taker=:id) AND status=1";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $userId]);
 
