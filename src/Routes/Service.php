@@ -103,6 +103,22 @@ class Service {
         return $this->api->fail("Cannot insert data!");
     }
 
+    function setStatus(Request $request, Response $response, array $args) {
+        // params
+        $id = $args['id'] ?? null;
+        $status = $request->getParsedBodyParam('status');
+        $status = $this->getStatusIdByName($status);
+
+        // id or status not valid
+        if (!$id || !isset($status))
+            return $this->api->fail('ID or status is not valid');
+
+        // update service
+        $query = $this->db->prepare("UPDATE service SET status=:status WHERE id=:id LIMIT 1");
+        $result = $query->execute([':id' => $id, ':status' => $status]);
+        return $result ? $this->api->success() : $this->api->fail('Cannot update service');
+    }
+
     private function assignAvailableService($userId) {
         // get user type
         $query = $this->db->prepare("SELECT id, type FROM users WHERE id=:uid AND type>1 LIMIT 1");
@@ -144,6 +160,20 @@ class Service {
         }
 
         return $result ? $result['id'] : 0;
+    }
+
+    private function getStatusIdByName($status) {
+        $statusId = [
+            'failed',
+            'active',
+            'success',
+            'cancel'
+        ];
+        foreach ($statusId as $key => $value) {
+            if ($value == $status)
+                return $key;
+        }
+        return null;
     }
 }
 ?>

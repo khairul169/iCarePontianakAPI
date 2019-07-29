@@ -26,5 +26,6 @@ return function (App $app) {
     $app->group('/service', function(App $app) {
         $app->get('/', '\Service:getAll');
         $app->post('/', '\Service:create');
+        $app->patch('/{id}/status', '\Service:setStatus');
     });
 };
