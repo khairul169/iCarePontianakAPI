@@ -34,7 +34,7 @@ class Service {
             // update service taker
             if (!($row['taker'])) {
                 $lokasi = $row['data']['lokasi'] ?? null;
-                $row['taker'] = $this->findServiceTaker($row['id'], $userId, $lokasi);
+                $row['taker'] = $this->findServiceTaker($row['id'], $row['type'], $userId, $lokasi);
             }
 
             // select user
@@ -44,7 +44,7 @@ class Service {
             }
 
             // fetch user
-            $sql = "SELECT id, name, role, registered, phone FROM users WHERE id=:id LIMIT 1";
+            $sql = "SELECT id, name, type, registered, phone FROM users WHERE id=:id LIMIT 1";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':id' => $row['user']]);
             $user = $stmt->fetch();
@@ -54,7 +54,7 @@ class Service {
                 setlocale (LC_ALL, "id");
                 $user['registered'] = strftime('%e %B %Y', $user['registered']);
 
-                if ($user['role'] > 1) {
+                if ($user['type'] > 1) {
                     $user['reputation'] = [
                         'rating' => "4.92",
                         'amount' => "249"
@@ -104,18 +104,19 @@ class Service {
     }
 
     private function assignAvailableService($userId) {
-        // get user role
-        $query = $this->db->prepare("SELECT id, role FROM users WHERE id=:uid AND role>1 LIMIT 1");
+        // get user type
+        $query = $this->db->prepare("SELECT id, type FROM users WHERE id=:uid AND type>1 LIMIT 1");
         $query->execute([':uid' => $userId]);
         $result = $query->fetch();
-        $role = $result['role'] ?? null;
+        $type = $result['type'] ?? null;
 
         // user is not a caretaker
-        if (!$role) return;
+        if (!$type) return;
 
         // find unassigned service
-        $query = $this->db->prepare("SELECT id, status, taker, data FROM service WHERE status=1 AND taker=0 LIMIT 1");
-        $query->execute();
+        $query = $this->db->prepare("SELECT id, status, taker, type FROM service
+        WHERE status=1 AND taker=0 AND type=:type LIMIT 1");
+        $query->execute([':type' => $type]);
         $result = $query->fetch();
 
         // update care taker
@@ -125,15 +126,15 @@ class Service {
         }
     }
 
-    private function findServiceTaker($id, $userId, $lokasi) {
+    private function findServiceTaker($id, $serviceType, $userId, $lokasi) {
         // find service taker
-        $sql = "SELECT users.id, users.role, COUNT(service.id) as services FROM users
+        $sql = "SELECT users.id, users.type, COUNT(service.id) as services FROM users
         LEFT JOIN service ON service.status=1 AND service.taker=users.id GROUP BY users.id
-        HAVING services=0 AND users.id!=:uid AND users.role=2 LIMIT 1";
+        HAVING services=0 AND users.id!=:uid AND users.type=:type LIMIT 1";
         
         // exec query
         $query = $this->db->prepare($sql);
-        $query->execute([':uid' => $userId]);
+        $query->execute([':uid' => $userId, ':type' => $serviceType]);
         $result = $query->fetch();
 
         // service taker found

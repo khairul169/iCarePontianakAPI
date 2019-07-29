@@ -20,7 +20,7 @@ class User {
         $userId = $request->getAttribute('token')['id'] ?: null;
 
         // sql statement
-        $sql = "SELECT id, username, registered, role, name, phone FROM users WHERE id=:id";
+        $sql = "SELECT id, username, registered, type, name, phone FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $userId]);
 
@@ -34,7 +34,7 @@ class User {
         $userId = isset($args['id']) ? (int) $args['id'] : $userId;
 
         // sql statement
-        $sql = "SELECT id, username, registered, role, name, phone FROM users WHERE id=:id";
+        $sql = "SELECT id, username, registered, type, name, phone FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $userId]);
 
