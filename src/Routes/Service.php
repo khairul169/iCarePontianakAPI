@@ -37,8 +37,12 @@ class Service {
                 $row['taker'] = $this->findServiceTaker($row['id'], $row['type'], $userId, $lokasi);
             }
 
+            // is the user making service
+            $self = ($row['user'] == $userId);
+            $row['self'] = $self;
+
             // select user
-            if ($row['user'] == $userId) {
+            if ($self && $row['type'] != 1) {
                 $row['user'] = $row['taker'];
                 unset($row['taker']);
             }
@@ -121,13 +125,16 @@ class Service {
 
     private function assignAvailableService($userId) {
         // get user type
-        $query = $this->db->prepare("SELECT id, type FROM users WHERE id=:uid AND type>1 LIMIT 1");
+        $query = $this->db->prepare("SELECT users.id, users.type, COUNT(service.id) as services FROM users
+        LEFT JOIN service ON service.status=1 AND service.taker=users.id
+        WHERE users.id=:uid AND users.type>1 HAVING services=0 LIMIT 1");
+        
         $query->execute([':uid' => $userId]);
         $result = $query->fetch();
         $type = $result['type'] ?? null;
 
         // user is not a caretaker
-        if (!$type) return;
+        if (!$result || !$type) return;
 
         // find unassigned service
         $query = $this->db->prepare("SELECT id, status, taker, type FROM service
