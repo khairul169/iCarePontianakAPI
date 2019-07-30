@@ -23,14 +23,14 @@ class API {
         ));
     }
 
-    function fail(string $message = '') {
+    function fail($message = null) {
         return $this->response->withJson(array(
             'success'   => false,
             'message'   => empty($message) ? "Undefined" : $message
         ));
     }
 
-    function error(string $message = '') {
+    function error($message = null) {
         $this->logger->error($message);
     }
 
