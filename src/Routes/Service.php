@@ -143,12 +143,12 @@ class Service {
 
     private function findCareTaker($id, $user, $type, $latitude, $longitude) {
         // find service taker
-        $sql = "SELECT u.id, u.type, COUNT(s.id) as services, (6371 * acos(
+        $sql = "SELECT u.id, u.type, u.active, COUNT(s.id) as services, (6371 * acos(
             cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng) - radians(:lng)) + 
             sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
         FROM users AS u
         LEFT JOIN service AS s ON s.taker=u.id AND s.status=1 GROUP BY u.id
-        HAVING u.id!=:user AND u.type=:type AND services < 1 AND distance < 200
+        HAVING u.id!=:user AND u.type=:type AND u.active=1 AND services < 1 AND distance < 200
         ORDER BY distance LIMIT 1";
         
         // exec query
