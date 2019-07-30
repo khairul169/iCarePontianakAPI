@@ -7,6 +7,7 @@ require_once __DIR__ . '/Routes/Auth.php';
 require_once __DIR__ . '/Routes/User.php';
 require_once __DIR__ . '/Routes/Service.php';
 require_once __DIR__ . '/Routes/Notification.php';
+require_once __DIR__ . '/Routes/Ambulance.php';
 
 return function (App $app) {
     // authentication
@@ -33,5 +34,10 @@ return function (App $app) {
     // notification
     $app->group('/notification', function(App $app) {
         $app->get('/', '\Notification:getAll');
+    });
+
+    // ambulance
+    $app->group('/ambulance', function(App $app) {
+        $app->get('/', '\Ambulance:getAll');
     });
 };
