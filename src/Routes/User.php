@@ -29,13 +29,18 @@ class User {
 
     private function getUserInfo($id) {
         // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone, lat, lng FROM users WHERE id=:id";
+        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $id]);
 
         // result
-        $result = $query->fetch();
-        return $result ? $this->api->success($result) : $this->api->fail("User not exists");
+        $user = $query->fetch();
+
+        if ($user) {
+            $user['image'] = $user['image'] ? $this->api->getUserImageUrl($user['image']) : null;
+        }
+
+        return $user ? $this->api->success($user) : $this->api->fail("User not exists");
     }
 
     function setData(Request $request, Response $response, array $args) {
@@ -61,15 +66,19 @@ class User {
                 if (!isset($value['latitude']) || !isset($value['longitude']))
                     break;
                 return $this->setUserLocation($userId, $value['latitude'], $value['longitude']);
+            
+            // profile image
+            case 'profileimg':
+                return $this->setProfileImage($userId, $value);
         }
 
         return $this->api->fail('Cannot update user!');
     }
 
     private function setUserCol($id, $col, $value) {
-        $sql = "UPDATE users SET :col=:val WHERE id=:id LIMIT 1";
+        $sql = "UPDATE users SET $col=:val WHERE id=:id LIMIT 1";
         $query = $this->db->prepare($sql);
-        $res = $query->execute([':id' => $id, ':col' => $col, ':val' => $value]);
+        $res = $query->execute([':id' => $id, ':val' => $value]);
         return $res ? $this->api->success() : $this->api->fail();
     }
 
@@ -78,6 +87,15 @@ class User {
         $query = $this->db->prepare($sql);
         $res = $query->execute([':id' => $id, ':lat' => $latitude, ':lng' => $longitude]);
         return $res ? $this->api->success() : $this->api->fail();
+    }
+
+    private function setProfileImage($userId, $data) {
+        // store image
+        $userimg = $this->api->storeUserImage($data);
+        if ($userimg) {
+            return $this->setUserCol($userId, 'image', $userimg);
+        }
+        return $this->api->fail();
     }
 }
 

@@ -42,16 +42,20 @@ class Service {
             }
 
             // fetch user
-            $sql = "SELECT id, name, type, registered, phone FROM users WHERE id=:id LIMIT 1";
+            $sql = "SELECT id, name, type, image, registered, phone FROM users WHERE id=:id LIMIT 1";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':id' => $row['user']]);
             $user = $stmt->fetch();
 
             if ($user) {
-                // set registered time
+                // profile image
+                $user['image'] = $user['image'] ? $this->api->getUserImageUrl($user['image']) : null;
+
+                // registered time
                 setlocale (LC_ALL, "id");
                 $user['registered'] = strftime('%e %B %Y', $user['registered']);
 
+                // reputation
                 if ($user['type'] > 1) {
                     $user['reputation'] = [
                         'rating' => "4.92",

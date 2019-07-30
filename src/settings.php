@@ -24,6 +24,12 @@ return [
             'level' => \Monolog\Logger::DEBUG,
         ],
 
+        'site' => [
+            'url' => "http://" . $_SERVER['HTTP_HOST'] . "/icare/public/",
+            'imgurl' => 'userimg/',
+            'imgdir' => __DIR__ . '/../public/userimg/'
+        ],
+
         // Database settings
         'db' => [
             'host' => $_ENV['DB_HOST'],
