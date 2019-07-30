@@ -60,8 +60,6 @@ class User {
                 // location is not valid
                 if (!isset($value['latitude']) || !isset($value['longitude']))
                     break;
-                
-                // set user loc
                 return $this->setUserLocation($userId, $value['latitude'], $value['longitude']);
         }
 

@@ -18,8 +18,8 @@ class Service {
     function getAll(Request $request, Response $response) {
         $userId = $request->getAttribute('token')['id'];
 
-        // find service
-        $this->assignAvailableService($userId);
+        // update caretaker
+        $this->updateCareTaker();
 
         // fetch service
         $sql = "SELECT * FROM service WHERE (type=1 OR user=:id OR taker=:id) AND status=1 ORDER BY id DESC";
@@ -30,12 +30,6 @@ class Service {
         foreach ($query->fetchAll() as $row) {
             // decode data
             $row['data'] = json_decode($row['data'], true);
-
-            // update service taker
-            if (!($row['taker'])) {
-                $lokasi = $row['data']['lokasi'] ?? null;
-                $row['taker'] = $this->findServiceTaker($row['id'], $row['type'], $userId, $lokasi);
-            }
 
             // is the user making service
             $self = ($row['user'] == $userId);
@@ -80,21 +74,27 @@ class Service {
         // params
         $type = $request->getParsedBodyParam('type', 0);
         $data = $request->getParsedBodyParam('data');
+        $location = $request->getParsedBodyParam('location');
 
         // data is empty
-        if (!$data)
+        if (!$data || !$location)
             return $this->api->fail("Data is empty");
 
         // encode data
         $data = json_encode($data);
 
         // insert data
-        $sql = "INSERT INTO service (user, type, data, status) VALUES (:id, :type, :data, '1')";
+        $sql = "INSERT INTO service (user, type, data, lat, lng, timestamp)
+        VALUES (:id, :type, :data, :lat, :lng, :time)";
+
         $query = $this->db->prepare($sql);
         $res = $query->execute([
-            ':id' => $userId,
+            ':id'   => $userId,
             ':type' => $type,
-            ':data' => $data
+            ':data' => $data,
+            ':lat'  => $location['latitude'],
+            ':lng'  => $location['longitude'],
+            ':time' => time()
         ]);
 
         // success
@@ -123,47 +123,44 @@ class Service {
         return $result ? $this->api->success() : $this->api->fail('Cannot update service');
     }
 
-    private function assignAvailableService($userId) {
-        // get user type
-        $query = $this->db->prepare("SELECT users.id, users.type, COUNT(service.id) as services FROM users
-        LEFT JOIN service ON service.status=1 AND service.taker=users.id
-        WHERE users.id=:uid AND users.type>1 HAVING services=0 LIMIT 1");
-        
-        $query->execute([':uid' => $userId]);
-        $result = $query->fetch();
-        $type = $result['type'] ?? null;
+    private function updateCareTaker() {
+        $sql = "SELECT id, user, type, lat, lng FROM service WHERE taker=0 AND status=1 LIMIT 10";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
 
-        // user is not a caretaker
-        if (!$result || !$type) return;
+        foreach ($stmt->fetchAll() as $row) {
+            if ($row['type'] <= 1)
+                continue;
 
-        // find unassigned service
-        $query = $this->db->prepare("SELECT id, status, taker, type FROM service
-        WHERE status=1 AND taker=0 AND type=:type LIMIT 1");
-        $query->execute([':type' => $type]);
-        $result = $query->fetch();
-
-        // update care taker
-        if ($result) {
-            $query = $this->db->prepare("UPDATE service SET taker=:uid WHERE id=:id LIMIT 1");
-            $query->execute([':id' => $result['id'], ':uid' => $userId]);
+            // update service taker
+            $this->findCareTaker($row['id'], $row['user'], $row['type'], $row['lat'], $row['lng']);
         }
     }
 
-    private function findServiceTaker($id, $serviceType, $userId, $lokasi) {
+    private function findCareTaker($id, $user, $type, $latitude, $longitude) {
         // find service taker
-        $sql = "SELECT users.id, users.type, COUNT(service.id) as services FROM users
-        LEFT JOIN service ON service.status=1 AND service.taker=users.id GROUP BY users.id
-        HAVING services=0 AND users.id!=:uid AND users.type=:type LIMIT 1";
+        $sql = "SELECT u.id, u.type, COUNT(s.id) as services, (6371 * acos(
+            cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng) - radians(:lng)) + 
+            sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
+        FROM users AS u
+        LEFT JOIN service AS s ON s.taker=u.id AND s.status=1 GROUP BY u.id
+        HAVING u.id!=:user AND u.type=:type AND services < 1 AND distance < 200
+        ORDER BY distance LIMIT 1";
         
         // exec query
         $query = $this->db->prepare($sql);
-        $query->execute([':uid' => $userId, ':type' => $serviceType]);
+        $query->execute([
+            ':user' => $user,
+            ':type' => $type,
+            ':lat'  => $latitude,
+            ':lng'  => $longitude
+        ]);
         $result = $query->fetch();
 
-        // service taker found
+        // update caretaker
         if ($result) {
-            $stmt = $this->db->prepare("UPDATE service SET taker=:uid WHERE id=:id LIMIT 1");
-            $stmt->execute([':id' => $id, ':uid' => $result['id']]);
+            $stmt = $this->db->prepare("UPDATE service SET taker=:user WHERE id=:id LIMIT 1");
+            $stmt->execute([':id' => $id, ':user' => $result['id']]);
         }
 
         return $result ? $result['id'] : 0;
