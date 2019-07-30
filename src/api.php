@@ -63,5 +63,13 @@ class API {
     function getUserImageUrl($url) {
         return $this->getUrl($this->settings['site']['imgurl'] . $url);
     }
+
+    function getPasswordHash($password) {
+        return password_hash($password, PASSWORD_DEFAULT);
+    }
+
+    function verifyPassword($password, $hash) {
+        return password_verify($password, $hash);
+    }
 }
 ?>

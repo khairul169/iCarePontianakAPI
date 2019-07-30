@@ -21,6 +21,7 @@ return function (App $app) {
     $app->group('/user', function(App $app) {
         $app->get('/', '\User:get');
         $app->get('/{id}', '\User:getUser');
+        $app->patch('/', '\User:setDataMulti');
         $app->patch('/{type}', '\User:setData');
     });
 

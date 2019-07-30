@@ -17,7 +17,7 @@ class User {
 
     function get(Request $request, Response $response, array $args) {
         // get userid from token
-        $userId = $request->getAttribute('token')['id'] ?: null;
+        $userId = $request->getAttribute('token')['id'];
         return $this->getUserInfo($userId);
     }
 
@@ -29,7 +29,8 @@ class User {
 
     private function getUserInfo($id) {
         // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng FROM users WHERE id=:id";
+        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng, active
+            FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $id]);
 
@@ -45,16 +46,36 @@ class User {
 
     function setData(Request $request, Response $response, array $args) {
         // get userid from token
-        $userId = $request->getAttribute('token')['id'] ?: null;
+        $userId = $request->getAttribute('token')['id'];
 
         // params
         $type = $args['type'] ?? null;
         $value = $request->getParsedBodyParam('value');
+        return $this->selectSetData($userId, $type, $value);
+    }
 
+    function setDataMulti(Request $request, Response $response) {
+        // params
+        $userId = $request->getAttribute('token')['id'];
+        $data = $request->getParsedBodyParam('data');
+
+        foreach ($data as $type => $value) {
+            if (!$value) continue;
+            $this->selectSetData($userId, $type, $value);
+        }
+        return $this->api->success();
+    }
+
+    private function selectSetData($userId, $type, $value) {
         switch ($type) {
             // set user name
             case 'name':
                 return $this->setUserCol($userId, 'name', trim($value));
+            
+            // set password
+            case 'password':
+                $password = $this->api->getPasswordHash($value);
+                return $this->setUserCol($userId, 'password', $password);
             
             // set phone number
             case 'phone':
@@ -65,13 +86,20 @@ class User {
                 // location is not valid
                 if (!isset($value['latitude']) || !isset($value['longitude']))
                     break;
-                return $this->setUserLocation($userId, $value['latitude'], $value['longitude']);
+                return $this->setUserLocation(
+                    $userId,
+                    $value['latitude'],
+                    $value['longitude']
+                );
             
             // profile image
             case 'profileimg':
                 return $this->setProfileImage($userId, $value);
+            
+            // set user name
+            case 'active':
+                return $this->setUserCol($userId, 'active', (int) $value);
         }
-
         return $this->api->fail('Cannot update user!');
     }
 

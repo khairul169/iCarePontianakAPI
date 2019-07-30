@@ -32,7 +32,7 @@ class Auth {
             return $this->api->fail('Username or Password is weak');
         
         // generate password hash
-        $password = $this->getPasswordHash($password);
+        $password = $this->api->getPasswordHash($password);
 
         // check username
         $stmt = $this->db->prepare("SELECT id FROM users WHERE username=:user LIMIT 1");
@@ -79,7 +79,7 @@ class Auth {
             return $this->api->fail('User not found');
 
         // verify password hash
-        if (!$this->verifyPassword($password, $user['password']))
+        if (!$this->api->verifyPassword($password, $user['password']))
             return $this->api->fail('Wrong password');
 
         // return token
@@ -109,14 +109,6 @@ class Auth {
         // token is valid
         $newToken = $this->generateToken((int) $result['id']);
         return $this->api->success(['token' => $newToken]);
-    }
-
-    private function getPasswordHash($password) {
-        return password_hash($password, PASSWORD_DEFAULT);
-    }
-
-    private function verifyPassword($password, $hash) {
-        return password_verify($password, $hash);
     }
 
     private function generateToken($userId) {
