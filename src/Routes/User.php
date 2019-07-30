@@ -18,25 +18,20 @@ class User {
     function get(Request $request, Response $response, array $args) {
         // get userid from token
         $userId = $request->getAttribute('token')['id'] ?: null;
-
-        // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone FROM users WHERE id=:id";
-        $query = $this->db->prepare($sql);
-        $query->execute([':id' => $userId]);
-
-        // result
-        $result = $query->fetch();
-        return $result ? $this->api->success($result) : $this->api->fail("User not exists");
+        return $this->getUserInfo($userId);
     }
 
     function getUser(Request $request, Response $response, array $args) {
         // args
         $userId = isset($args['id']) ? (int) $args['id'] : $userId;
+        return $this->getUserInfo($userId);
+    }
 
+    private function getUserInfo($id) {
         // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone FROM users WHERE id=:id";
+        $sql = "SELECT id, username, registered, type, name, phone, lat, lng FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
-        $query->execute([':id' => $userId]);
+        $query->execute([':id' => $id]);
 
         // result
         $result = $query->fetch();
@@ -63,9 +58,11 @@ class User {
             // set location
             case 'location':
                 // location is not valid
-                if (!isset($value['lat']) || !isset($value['lng']))
+                if (!isset($value['latitude']) || !isset($value['longitude']))
                     break;
-                return $this->setUserLocation($userId, $value['lat'], $value['lng']);
+                
+                // set user loc
+                return $this->setUserLocation($userId, $value['latitude'], $value['longitude']);
         }
 
         return $this->api->fail('Cannot update user!');
