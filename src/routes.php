@@ -6,6 +6,7 @@ use \Slim\App;
 require_once __DIR__ . '/Routes/Auth.php';
 require_once __DIR__ . '/Routes/User.php';
 require_once __DIR__ . '/Routes/Service.php';
+require_once __DIR__ . '/Routes/Notification.php';
 
 return function (App $app) {
     // authentication
@@ -27,5 +28,10 @@ return function (App $app) {
         $app->get('/', '\Service:getAll');
         $app->post('/', '\Service:create');
         $app->patch('/{id}/status', '\Service:setStatus');
+    });
+
+    // notification
+    $app->group('/notification', function(App $app) {
+        $app->get('/', '\Notification:getAll');
     });
 };
