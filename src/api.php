@@ -1,6 +1,7 @@
 <?php
 
 use Slim\Container;
+use Slim\Http\Request;
 use Slim\Http\Response;
 
 class API {
@@ -9,11 +10,14 @@ class API {
     /** @var \Monolog\Logger */
     protected $logger;
     protected $settings;
+    /** @var PDO */
+    protected $db;
 
     function __construct(Container $container) {
         $this->response = $container->get('response');
         $this->logger = $container->get('logger');
         $this->settings = $container->get('settings');
+        $this->db = $container->get('db');
     }
 
     function success($result = null) {
@@ -70,6 +74,30 @@ class API {
 
     function verifyPassword($password, $hash) {
         return password_verify($password, $hash);
+    }
+
+    function getUserName(int $id) {
+        $stmt = $this->db->prepare("SELECT name FROM users WHERE id=:id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $result = $stmt->fetch();
+        return $result ? $result['name'] : null;
+    }
+
+    function notify(int $id, string $message) {
+        $stmt = $this->db->prepare("INSERT INTO notification (user, content, timestamp) VALUES (:id, :msg, :time)");
+        return $stmt->execute([':id' => $id, ':msg' => $message, ':time' => time()]);
+    }
+
+    function broadcast(array $users, string $message, $object = null) {
+        $objectName = $object ? $this->getUserName($object) : null;
+
+        foreach ($users as $user) {
+            $args = [
+                ':OBJECT' => $user == $object ? "Anda" : $objectName
+            ];
+            $msg = str_replace(array_keys($args), array_values($args), $message);
+            $this->notify($user, $msg);
+        }
     }
 }
 ?>

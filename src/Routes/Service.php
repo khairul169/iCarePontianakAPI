@@ -112,19 +112,52 @@ class Service {
     }
 
     function setStatus(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+
         // params
         $id = $args['id'] ?? null;
         $status = $request->getParsedBodyParam('status');
-        $status = $this->getStatusIdByName($status);
 
         // id or status not valid
-        if (!$id || !isset($status))
+        if (!$id || !$status)
             return $this->api->fail('ID or status is not valid');
+        
+        // find service
+        $query = $this->db->prepare("SELECT user, taker FROM service WHERE id=:id LIMIT 1");
+        $query->execute([':id' => $id]);
+        $service = $query->fetch();
+
+        if (!$service)
+            return $this->api->fail('Service not found.');
 
         // update service
         $query = $this->db->prepare("UPDATE service SET status=:status WHERE id=:id LIMIT 1");
-        $result = $query->execute([':id' => $id, ':status' => $status]);
-        return $result ? $this->api->success() : $this->api->fail('Cannot update service');
+        $result = $query->execute([':id' => $id, ':status' => $this->getStatusIdByName($status)]);
+
+        if (!$result)
+            return $this->api->fail('Cannot update service');
+        
+        $message = '';
+        switch ($status) {
+            case 'cancel':
+                $message = 'dibatalkan';
+                break;
+            case 'success':
+                $message = 'selesai';
+                break;
+            default:
+                $message = $status;
+                break;
+        }
+        
+        // create notification
+        if (!empty($message)) {
+            $user = $service['user']; $taker = $service['taker'];
+            $message = ":OBJECT telah mengubah status layanan #$id menjadi $message.";
+            $this->api->broadcast([$user, $taker], $message, $userId);
+        }
+
+        return $this->api->success();
     }
 
     private function updateCareTaker() {
@@ -163,8 +196,21 @@ class Service {
 
         // update caretaker
         if ($result) {
-            $stmt = $this->db->prepare("UPDATE service SET taker=:user WHERE id=:id LIMIT 1");
-            $stmt->execute([':id' => $id, ':user' => $result['id']]);
+            $nakes = $result['id'];
+            $stmt = $this->db->prepare("UPDATE service SET taker=:taker WHERE id=:id LIMIT 1");
+            $stmt->execute([':id' => $id, ':taker' => $nakes]);
+            
+            // create notification
+            $nakesName = $this->api->getUserName($nakes);
+            $userMsg =  "$nakesName telah mengambil layanan #$id yang anda buat. ";
+            $userMsg .= "Silahkan hubungi nakes tersebut untuk info lanjut.";
+
+            $nakesMsg = "Anda telah mendapatkan layanan baru dengan id #$id. ";
+            $nakesMsg .= "Segera hubungi klien Anda untuk info lanjut.";
+
+            // notify both user and nakes
+            $this->api->notify($user, $userMsg);
+            $this->api->notify($nakes, $nakesMsg);
         }
 
         return $result ? $result['id'] : 0;
