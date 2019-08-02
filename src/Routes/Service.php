@@ -15,14 +15,18 @@ class Service {
         $this->api = $c->get('api');
     }
 
-    function getAll(Request $request, Response $response) {
+    function getAll(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
+
+        // args
+        $active = !empty($args['active']) ? $args['active'] != 'inactive' : true;
 
         // update caretaker
         $this->updateCareTaker();
 
         // fetch service
-        $sql = "SELECT * FROM service WHERE (type=1 OR user=:id OR taker=:id) AND status=1 ORDER BY id DESC";
+        $sql = $active ? "status=1" : "status!=1";
+        $sql = "SELECT * FROM service WHERE (type=1 OR user=:id OR taker=:id) AND $sql ORDER BY id DESC";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $userId]);
 

@@ -99,6 +99,9 @@ class User {
             // set user name
             case 'active':
                 return $this->setUserCol($userId, 'active', (int) $value);
+            
+            case 'deviceid':
+                return $this->setUserCol($userId, 'device_id', $value);
         }
         return $this->api->fail('Cannot update user!');
     }
