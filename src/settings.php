@@ -38,6 +38,11 @@ return [
             'dbname' => $_ENV['DB_NAME']
         ],
 
+        // OneSignal API settings
+        'onesignal' => [
+            'appid' => $_ENV['ONESIGNAL_APPID']
+        ],
+
         // Hash
         'hash'  => [
             'jwt' => $_ENV['JWT_KEY']

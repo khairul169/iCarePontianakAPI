@@ -141,24 +141,30 @@ class Service {
         if (!$result)
             return $this->api->fail('Cannot update service');
         
+        // push notification
+        $title = "Status layanan diubah";
         $message = '';
+
         switch ($status) {
             case 'cancel':
-                $message = 'dibatalkan';
+                $title = "Layanan dibatalkan";
+                $message = "membatalkan";
                 break;
+
             case 'success':
-                $message = 'selesai';
+                $title = "Layanan selesai";
+                $message = "menyelesaikan";
                 break;
+
             default:
-                $message = $status;
                 break;
         }
         
         // create notification
         if (!empty($message)) {
             $user = $service['user']; $taker = $service['taker'];
-            $message = ":OBJECT telah mengubah status layanan #$id menjadi $message.";
-            $this->api->broadcast([$user, $taker], $message, $userId);
+            $message = ":OBJECT telah $message layanan #$id.";
+            $this->api->broadcast([$user, $taker], $title, $message, $userId);
         }
 
         return $this->api->success();
@@ -213,8 +219,8 @@ class Service {
             $nakesMsg .= "Segera hubungi klien Anda untuk info lanjut.";
 
             // notify both user and nakes
-            $this->api->notify($user, $userMsg);
-            $this->api->notify($nakes, $nakesMsg);
+            $this->api->notify($user, "Tenaga kesehatan ditemukan!", $userMsg);
+            $this->api->notify($nakes, "Layanan baru telah didapakan", $nakesMsg);
         }
 
         return $result ? $result['id'] : 0;

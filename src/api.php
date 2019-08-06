@@ -7,17 +7,24 @@ use Slim\Http\Response;
 class API {
     /** @var Response */
     protected $response;
+
     /** @var \Monolog\Logger */
     protected $logger;
+
     protected $settings;
+
     /** @var PDO */
     protected $db;
+
+    /** @var OneSignalAPI */
+    protected $onesignal;
 
     function __construct(Container $container) {
         $this->response = $container->get('response');
         $this->logger = $container->get('logger');
         $this->settings = $container->get('settings');
         $this->db = $container->get('db');
+        $this->onesignal = $container->get('onesignal');
     }
 
     function success($result = null) {
@@ -76,19 +83,34 @@ class API {
         return password_verify($password, $hash);
     }
 
-    function getUserName(int $id) {
-        $stmt = $this->db->prepare("SELECT name FROM users WHERE id=:id LIMIT 1");
+    function getUserById(int $id) {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE id=:id LIMIT 1");
         $stmt->execute([':id' => $id]);
         $result = $stmt->fetch();
-        return $result ? $result['name'] : null;
+        return $result;
     }
 
-    function notify(int $id, string $message) {
+    function getUserName(int $id) {
+        $user = $this->getUserById($id);
+        return $user ? $user['name'] : null;
+    }
+
+    function notify(int $id, string $title, string $message) {
+        $user = $this->getUserById($id);
+
+        if (!$user)
+            return false;
+        
+        if (!empty($user['device_id'])) {
+            $title = empty($title) ? 'Pemberitahuan Layanan' : $title;
+            $this->onesignal->sendToId($user['device_id'], 'notification', $title, $message);
+        }
+
         $stmt = $this->db->prepare("INSERT INTO notification (user, content, timestamp) VALUES (:id, :msg, :time)");
         return $stmt->execute([':id' => $id, ':msg' => $message, ':time' => time()]);
     }
 
-    function broadcast(array $users, string $message, $object = null) {
+    function broadcast(array $users, string $title, string $message, $object = null) {
         $objectName = $object ? $this->getUserName($object) : null;
 
         foreach ($users as $user) {
@@ -96,7 +118,7 @@ class API {
                 ':OBJECT' => $user == $object ? "Anda" : $objectName
             ];
             $msg = str_replace(array_keys($args), array_values($args), $message);
-            $this->notify($user, $msg);
+            $this->notify($user, $title, $msg);
         }
     }
 }

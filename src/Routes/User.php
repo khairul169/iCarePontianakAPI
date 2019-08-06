@@ -101,12 +101,17 @@ class User {
                 return $this->setUserCol($userId, 'active', (int) $value);
             
             case 'deviceid':
-                return $this->setUserCol($userId, 'device_id', $value);
+                return $this->setUserCol($userId, 'device_id', $value, true);
         }
         return $this->api->fail('Cannot update user!');
     }
 
-    private function setUserCol($id, $col, $value) {
+    private function setUserCol($id, $col, $value, $removeDuplicate = false) {
+        if ($removeDuplicate) {
+            $query = $this->db->prepare("UPDATE users SET $col='' WHERE $col=:val");
+            $query->execute([':val' => $value]);
+        }
+
         $sql = "UPDATE users SET $col=:val WHERE id=:id LIMIT 1";
         $query = $this->db->prepare($sql);
         $res = $query->execute([':id' => $id, ':val' => $value]);

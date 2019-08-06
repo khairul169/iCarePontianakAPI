@@ -2,6 +2,7 @@
 
 use Slim\App;
 
+require_once __DIR__ . '/onesignal.php';
 require_once __DIR__ . '/api.php';
 
 return function (App $app) {
@@ -24,6 +25,13 @@ return function (App $app) {
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         return $db;
+    };
+
+    // onesignal api
+    $container['onesignal'] = function ($c) {
+        $settings = $c->get('settings')['onesignal'];
+        $api = new OneSignalAPI($settings['appid']);
+        return $api;
     };
 
     // api
