@@ -84,7 +84,7 @@ class User {
             // set location
             case 'location':
                 // location is not valid
-                if (!isset($value['latitude']) || !isset($value['longitude']))
+                if (empty($value['latitude']) || empty($value['longitude']))
                     break;
                 return $this->setUserLocation(
                     $userId,

@@ -14,7 +14,7 @@ return function (App $app) {
     $app->group('/auth', function(App $app) {
         $app->post('/register', '\Auth:register');
         $app->post('/login', '\Auth:login');
-        $app->get('/validate', '\Auth:validate');
+        $app->post('/validate', '\Auth:validate');
     });
 
     // users

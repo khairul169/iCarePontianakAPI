@@ -88,16 +88,22 @@ class Auth {
     }
 
     function validate(Request $request, Response $response) {
-        $token = $request->getAttribute('token');
-        $userId = isset($token['id']) ? (int) $token['id'] : null;
+        // params
+        $token = $request->getParsedBodyParam('token');
+
+        // decode token
+        $token = $this->decodeToken($token);
+
+        if (!$token)
+            return $this->api->fail('Token invalid');
 
         // token expired
-        if (time() > (int) $token['exp'])
+        if (time() > $token->exp)
             return $this->api->fail('Token expired');
         
         // get user
         $stmt = $this->db->prepare("SELECT id FROM users WHERE id=:id LIMIT 1");
-        $stmt->execute([':id' => $userId]);
+        $stmt->execute([':id' => $token->id]);
 
         // fetch user
         $result = $stmt->fetch();
@@ -111,13 +117,22 @@ class Auth {
         return $this->api->success(['token' => $newToken]);
     }
 
-    private function generateToken($userId) {
+    private function generateToken(int $userId) {
         $key = $this->container->get('settings')['hash']['jwt'];
         $payload = array(
             'id'	=> $userId,
             'exp'	=> time() + (60*60*24*7)
         );
-        return JWT::encode($payload, $key);
+        return JWT::encode($payload, $key, 'HS256');
+    }
+
+    private function decodeToken($token) {
+        if (empty($token)) {
+            return false;
+        }
+        
+        $key = $this->container->get('settings')['hash']['jwt'];
+        return JWT::decode($token, $key, array('HS256'));
     }
 }
 

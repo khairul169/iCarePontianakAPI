@@ -5,7 +5,7 @@ use Slim\Http\Response;
 
 return function (App $app) {
     $app->add(new Tuupola\Middleware\JwtAuthentication([
-        "ignore"    => ["/auth/login", "/auth/register"],
+        "ignore"    => ["/auth"],
         "secret"    => $app->getContainer()->get('settings')['hash']['jwt'],
         "attribute" => "token",
 		"secure"	=> false,
