@@ -15,12 +15,64 @@ class Service {
         $this->api = $c->get('api');
     }
 
-    function getAll(Request $request, Response $response, array $args) {
+    function getServices(Request $request, Response $response, array $args) {
+        $result = [];
+        $stmt = $this->db->prepare("SELECT id, name, image FROM service_categories");
+        $stmt->execute();
+        $categories = $stmt->fetchAll();
+
+        foreach ($categories as $category) {
+            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:categoryId";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':categoryId' => $category['id']]);
+            $category['actions'] = $stmt->fetchAll();
+            $result[] = $category;
+        }
+
+        return $this->api->success($result);
+    }
+
+    function createService(Request $request, Response $response) {
+        // get userid from token
         $userId = $request->getAttribute('token')['id'];
 
-        // args
-        $active = !empty($args['active']) ? $args['active'] != 'inactive' : true;
+        // params
+        $type = $request->getParsedBodyParam('type', 0);
+        $data = $request->getParsedBodyParam('data');
+        $location = $request->getParsedBodyParam('location');
 
+        // data is empty
+        if (!$data || !$location)
+            return $this->api->fail("Data is empty");
+
+        // encode data
+        $data = json_encode($data);
+
+        // insert data
+        $sql = "INSERT INTO service (user, type, data, lat, lng, timestamp)
+        VALUES (:id, :type, :data, :lat, :lng, :time)";
+
+        $query = $this->db->prepare($sql);
+        $res = $query->execute([
+            ':id'   => $userId,
+            ':type' => $type,
+            ':data' => $data,
+            ':lat'  => $location['latitude'],
+            ':lng'  => $location['longitude'],
+            ':time' => time()
+        ]);
+
+        // success
+        if ($res) {
+            $resId = $this->db->lastInsertId();
+            return $this->api->success($resId);
+        }
+
+        // fail
+        return $this->api->fail("Cannot insert data!");
+    }
+
+    private function getUserServices(int $userId, bool $active = true) {
         // update caretaker
         $this->updateCareTaker();
 
@@ -74,45 +126,10 @@ class Service {
 
         return $this->api->success($result);
     }
-
-    function create(Request $request, Response $response) {
-        // get userid from token
+    
+    function getActiveServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
-
-        // params
-        $type = $request->getParsedBodyParam('type', 0);
-        $data = $request->getParsedBodyParam('data');
-        $location = $request->getParsedBodyParam('location');
-
-        // data is empty
-        if (!$data || !$location)
-            return $this->api->fail("Data is empty");
-
-        // encode data
-        $data = json_encode($data);
-
-        // insert data
-        $sql = "INSERT INTO service (user, type, data, lat, lng, timestamp)
-        VALUES (:id, :type, :data, :lat, :lng, :time)";
-
-        $query = $this->db->prepare($sql);
-        $res = $query->execute([
-            ':id'   => $userId,
-            ':type' => $type,
-            ':data' => $data,
-            ':lat'  => $location['latitude'],
-            ':lng'  => $location['longitude'],
-            ':time' => time()
-        ]);
-
-        // success
-        if ($res) {
-            $resId = $this->db->lastInsertId();
-            return $this->api->success($resId);
-        }
-
-        // fail
-        return $this->api->fail("Cannot insert data!");
+        return $this->getUserServices($userId);
     }
 
     function setStatus(Request $request, Response $response, array $args) {
@@ -238,6 +255,10 @@ class Service {
                 return $key;
         }
         return null;
+    }
+
+    private function getCurrency($amount) {
+        return "IDR " . number_format($amount, 0, ',', '.');
     }
 }
 ?>
