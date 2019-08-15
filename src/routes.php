@@ -27,9 +27,9 @@ return function (App $app) {
 
     // service
     $app->group('/service', function(App $app) {
-        $app->get('/', '\Service:getServices');
         $app->post('/', '\Service:createService');
-        $app->get('/active', '\Service:getActiveServices');
+        $app->get('/', '\Service:getActiveServices');
+        $app->get('/category/[{id}]', '\Service:getCategory');
         $app->patch('/{id}/status', '\Service:setStatus');
     });
 

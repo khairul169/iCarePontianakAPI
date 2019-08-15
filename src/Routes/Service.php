@@ -15,23 +15,6 @@ class Service {
         $this->api = $c->get('api');
     }
 
-    function getServices(Request $request, Response $response, array $args) {
-        $result = [];
-        $stmt = $this->db->prepare("SELECT id, name, image FROM service_categories");
-        $stmt->execute();
-        $categories = $stmt->fetchAll();
-
-        foreach ($categories as $category) {
-            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:categoryId";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':categoryId' => $category['id']]);
-            $category['actions'] = $stmt->fetchAll();
-            $result[] = $category;
-        }
-
-        return $this->api->success($result);
-    }
-
     function createService(Request $request, Response $response) {
         // get userid from token
         $userId = $request->getAttribute('token')['id'];
@@ -130,6 +113,32 @@ class Service {
     function getActiveServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
         return $this->getUserServices($userId);
+    }
+
+    function getCategory(Request $request, Response $response, array $args) {
+        // args
+        $serviceId = !empty($args['id']) ? (int) $args['id'] : false;
+
+        $result = [];
+        $sql = "SELECT id, name, image FROM service_categories";
+
+        if ($serviceId) {
+            $sql .= " WHERE id=:id LIMIT 1";
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $serviceId ?: $serviceId]);
+        $categories = $stmt->fetchAll();
+
+        foreach ($categories as $category) {
+            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:categoryId";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':categoryId' => $category['id']]);
+            $category['actions'] = $stmt->fetchAll();
+            $result[] = $category;
+        }
+
+        return $this->api->success($result);
     }
 
     function setStatus(Request $request, Response $response, array $args) {
