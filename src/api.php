@@ -31,14 +31,14 @@ class API {
         return $this->response->withJson(array(
             'success'   => true,
             'result'    => $result
-        ));
+        ), 200, JSON_NUMERIC_CHECK);
     }
 
     function fail($message = null) {
         return $this->response->withJson(array(
             'success'   => false,
             'message'   => empty($message) ? "Undefined" : $message
-        ));
+        ), 501);
     }
 
     function error($message = null) {
