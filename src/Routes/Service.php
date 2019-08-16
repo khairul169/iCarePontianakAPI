@@ -120,7 +120,7 @@ class Service {
         $serviceId = !empty($args['id']) ? (int) $args['id'] : false;
 
         $result = [];
-        $sql = "SELECT id, name, image FROM service_categories";
+        $sql = "SELECT id, name, icon FROM service_categories";
 
         if ($serviceId) {
             $sql .= " WHERE id=:id LIMIT 1";
@@ -136,7 +136,7 @@ class Service {
             $stmt->execute([':categoryId' => $category['id']]);
             
             $category['actions'] = $stmt->fetchAll();
-            $category['image'] = $this->api->getUrl($category['image']);
+            $category['icon'] = $this->api->getUrl($category['icon']);
             $result[] = $category;
         }
 
