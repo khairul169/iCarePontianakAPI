@@ -55,64 +55,93 @@ class Service {
         return $this->api->fail("Cannot insert data!");
     }
 
-    private function getUserServices(int $userId, bool $active = true) {
+    private function parseServiceData($service, $userId) {
+        if (!$service) return false;
+
+        // decode data
+        $service['data'] = json_decode($service['data'], true);
+
+        // is the user making service
+        $self = ($service['user'] == $userId);
+        $service['self'] = $self;
+
+        // select user
+        if ($self) {
+            $service['user'] = $service['taker'];
+        }
+
+        unset($service['taker']);
+
+        // get users data
+        $userColumns = 'id, type, name, phone, image, last_active';
+        $service['user'] = $this->api->getUserById($service['user'], $userColumns);
+
+        // get service cost
+        $service['cost'] = $this->getTotalCost("asd");
+        return $service;
+    }
+
+    function getActiveService(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+
         // update caretaker
         $this->updateCareTaker();
 
-        // fetch service
-        $sql = $active ? "status=1" : "status!=1";
-        $sql = "SELECT * FROM service WHERE (type=1 OR user=:id OR taker=:id) AND $sql ORDER BY id DESC";
+        $sql = "SELECT s.*, c.name as layanan FROM service AS s
+            LEFT JOIN service_categories AS c ON s.type=c.id
+            HAVING (s.user=:id OR s.taker=:id) AND s.status=1
+            ORDER BY id DESC LIMIT 1";
+
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $userId]);
-
-        $result = [];
-        foreach ($query->fetchAll() as $row) {
-            // decode data
-            $row['data'] = json_decode($row['data'], true);
-
-            // is the user making service
-            $self = ($row['user'] == $userId);
-            $row['self'] = $self;
-
-            // select user
-            if ($self && $row['type'] != 1) {
-                $row['user'] = $row['taker'];
-                unset($row['taker']);
-            }
-
-            // fetch user
-            $sql = "SELECT id, name, type, image, registered, phone FROM users WHERE id=:id LIMIT 1";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':id' => $row['user']]);
-            $user = $stmt->fetch();
-
-            if ($user) {
-                // profile image
-                $user['image'] = $user['image'] ? $this->api->getUserImageUrl($user['image']) : null;
-
-                // registered time
-                setlocale (LC_ALL, "id");
-                $user['registered'] = strftime('%e %B %Y', $user['registered']);
-
-                // reputation
-                if ($user['type'] > 1) {
-                    $user['reputation'] = [
-                        'rating' => "4.92",
-                        'amount' => "249"
-                    ];
-                }
-            }
-
-            $row['user'] = $user;
-            $result[] = $row;
-        }
+        $result = $query->fetch();
+        $result = $this->parseServiceData($result, $userId);
 
         return $this->api->success($result);
     }
-    
-    function getActiveServices(Request $request, Response $response, array $args) {
+
+    function getServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
-        return $this->getUserServices($userId);
+
+        // update caretaker
+        $this->updateCareTaker();
+
+        $result = [];
+
+        // fetch service
+        $sql = "SELECT id, user, taker, tindakan, status, waktu, alamat
+            FROM service WHERE (user=:id OR taker=:id)
+            ORDER BY id DESC LIMIT 20";
+        
+        $query = $this->db->prepare($sql);
+        $query->execute([':id' => $userId]);
+
+        foreach ($query->fetchAll() as $row) {
+            // user
+            $self = ($row['user'] == $userId);
+            $user = $self ? $row['taker'] : $row['user'];
+            $user = $this->api->getUserById($user, 'id, name, type, image, phone');
+
+            // service
+            $tindakan = $this->getTindakan($row['tindakan']);
+            $status = $this->getServiceStatus($row['status']);
+
+            $item = [
+                "id" => $row['id'],
+                "user" => $user,
+                "status" => $status,
+                "tindakan" => $tindakan
+            ];
+
+            if ($row['status'] == 1) {
+                $item['waktu'] = strftime('%e %B %Y %H:%M', $row['waktu']);
+                $item['alamat'] = $row['alamat'];
+            }
+
+            $result[] = $item;
+        }
+
+        return $this->api->success($result);
     }
 
     function getCategory(Request $request, Response $response, array $args) {
@@ -269,7 +298,41 @@ class Service {
     }
 
     private function getCurrency($amount) {
-        return "IDR " . number_format($amount, 0, ',', '.');
+        return "IDR " . number_format($amount, 0, ',', '.') . ",-";
+    }
+
+    private function getTindakan($tindakan) {
+        $tindakan = explode(', ', $tindakan);
+        $label = [];
+        $totalCost = 0;
+
+        if (is_array($tindakan)) {
+            $inQuery = join(',', array_fill(0, count($tindakan), '?'));
+            $sql = "SELECT name, cost FROM service_actions WHERE id IN ($inQuery)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($tindakan);
+            
+            foreach ($stmt->fetchAll() as $row) {
+                $label[] = $row['name'];
+                $totalCost += + intval($row['cost']);
+            }
+        }
+        
+        $result = [
+            'label' => implode(", ", $label),
+            'cost' => $this->getCurrency($totalCost)
+        ];
+        return $result;
+    }
+
+    private function getServiceStatus($status) {
+        $status = intval($status);
+        $value = [
+            'Selesai',
+            'Menunggu Nakes',
+            'Batal'
+        ];
+        return isset($value[$status]) ? $value[$status] : false;
     }
 }
 ?>

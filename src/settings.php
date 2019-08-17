@@ -12,6 +12,9 @@ try {
     die($e->getMessage());
 }
 
+// set time locale
+setlocale (LC_ALL, "id");
+
 return [
     'settings' => [
         'displayErrorDetails' => true, // set to false in production

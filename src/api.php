@@ -31,7 +31,7 @@ class API {
         return $this->response->withJson(array(
             'success'   => true,
             'result'    => $result
-        ), 200, JSON_NUMERIC_CHECK);
+        ));
     }
 
     function fail($message = null) {
@@ -83,20 +83,29 @@ class API {
         return password_verify($password, $hash);
     }
 
-    function getUserById(int $id) {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE id=:id LIMIT 1");
+    function getUserById(int $id, string $columns = '*') {
+        $stmt = $this->db->prepare("SELECT $columns FROM users WHERE id=:id LIMIT 1");
         $stmt->execute([':id' => $id]);
         $result = $stmt->fetch();
+
+        if (!empty($result['type'])) {
+            $result['type'] = $this->getUserRole($result['type']);
+        }
+
+        if (!empty($result['image'])) {
+            $result['image'] = $this->getUserImageUrl($result['image']);
+        }
+
         return $result;
     }
 
     function getUserName(int $id) {
-        $user = $this->getUserById($id);
+        $user = $this->getUserById($id, 'name');
         return $user ? $user['name'] : null;
     }
 
     function notify(int $id, string $title, string $message) {
-        $user = $this->getUserById($id);
+        $user = $this->getUserById($id, 'device_id');
 
         if (!$user)
             return false;
@@ -120,6 +129,21 @@ class API {
             $msg = str_replace(array_keys($args), array_values($args), $message);
             $this->notify($user, $title, $msg);
         }
+    }
+
+    function getUserRole($type) {
+        $type = intval($type);
+        $roles = [
+            'Undefined',
+            'Klien',
+            'Perawat',
+            'Analis Kesehatan',
+            'Perawat Gigi',
+            'Bidan',
+            'Kesehatan Lingkungan',
+            'Ahli Gizi'
+        ];
+        return !empty($roles[$type]) ? $roles[$type] : false;
     }
 }
 ?>
