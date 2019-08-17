@@ -70,51 +70,6 @@ class Service {
         return $this->api->fail("Cannot insert data!");
     }
 
-    private function parseServiceData($service, $userId) {
-        if (!$service) return false;
-
-        // decode data
-        $service['data'] = json_decode($service['data'], true);
-
-        // is the user making service
-        $self = ($service['user'] == $userId);
-        $service['self'] = $self;
-
-        // select user
-        if ($self) {
-            $service['user'] = $service['nakes'];
-        }
-
-        unset($service['nakes']);
-
-        // get users data
-        $userColumns = 'id, type, name, phone, image, last_active';
-        $service['user'] = $this->api->getUserById($service['user'], $userColumns);
-
-        // get service cost
-        $service['cost'] = $this->getTotalCost("asd");
-        return $service;
-    }
-
-    function getActiveService(Request $request, Response $response, array $args) {
-        $userId = $request->getAttribute('token')['id'];
-
-        // update nakes
-        $this->updateNakes();
-
-        $sql = "SELECT s.*, c.name as layanan FROM service AS s
-            LEFT JOIN service_categories AS c ON s.type=c.id
-            HAVING (s.user=:id OR s.nakes=:id) AND s.status=1
-            ORDER BY id DESC LIMIT 1";
-
-        $query = $this->db->prepare($sql);
-        $query->execute([':id' => $userId]);
-        $result = $query->fetch();
-        $result = $this->parseServiceData($result, $userId);
-
-        return $this->api->success($result);
-    }
-
     function getServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
 
@@ -133,8 +88,8 @@ class Service {
 
         foreach ($query->fetchAll() as $row) {
             // user
-            $self = ($row['user'] == $userId);
-            $user = $self && $row['nakes'] ? $row['nakes'] : $row['user'];
+            $client = ($row['user'] == $userId);
+            $user = $client && $row['nakes'] ? $row['nakes'] : $row['user'];
             $user = $this->api->getUserById($user, 'id, name, type, image, phone');
 
             // service
@@ -143,11 +98,11 @@ class Service {
             $kontak = $row['status'] == 1 && $row['nakes'];
 
             $item = [
-                "id" => $row['id'],
-                "user" => $user,
-                "status" => $status,
-                "tindakan" => $tindakan,
-                "kontak" => $kontak
+                'id' => $row['id'],
+                'user' => $user,
+                'status' => $status,
+                'tindakan' => $tindakan,
+                'kontak' => $kontak
             ];
 
             if ($row['status'] <= 1) {
@@ -159,6 +114,43 @@ class Service {
         }
 
         return $this->api->success($result);
+    }
+
+    function getServiceById(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        $id = $args['id'] ?? 0;
+
+        // fetch service
+        $stmt = $this->db->prepare("SELECT * FROM service WHERE id=:id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+
+        if (!$row)
+            return $this->api->fail();
+        
+        // user
+        $client = ($row['user'] == $userId);
+        $user = $client && $row['nakes'] ? $row['nakes'] : $row['user'];
+        $user = $this->api->getUserById($user, 'id, name, type, image, phone');
+
+        // service
+        $tindakan = $this->getTindakan($row['tindakan']);
+        $status = $this->getServiceStatus($row['status']);
+        $waktu = strftime('%e %B %Y %H:%M', $row['waktu']);
+
+        $item = [
+            'id' => $row['id'],
+            'client' => $client,
+            'user' => $user,
+            'status' => $status,
+            'keluhan' => $row['keluhan'],
+            'tindakan' => $tindakan,
+            'diagnosa' => $row['diagnosa'],
+            'alamat' => $row['alamat'],
+            'waktu' => $waktu
+        ];
+
+        return $this->api->success($item);
     }
 
     function getCategory(Request $request, Response $response, array $args) {
@@ -316,24 +308,31 @@ class Service {
 
     private function getTindakan($tindakan) {
         $tindakan = explode(', ', $tindakan);
+        $items = [];
         $label = [];
         $totalCost = 0;
 
         if (is_array($tindakan)) {
             $inQuery = join(',', array_fill(0, count($tindakan), '?'));
-            $sql = "SELECT name, cost FROM service_actions WHERE id IN ($inQuery)";
+            $sql = "SELECT id, name, cost FROM service_actions WHERE id IN ($inQuery)";
             $stmt = $this->db->prepare($sql);
             $stmt->execute($tindakan);
             
             foreach ($stmt->fetchAll() as $row) {
+                $items[] = [
+                    'id' => $row['id'],
+                    'name' => $row['name'],
+                    'cost' => $this->getCurrency($row['cost'])
+                ];
                 $label[] = $row['name'];
-                $totalCost += + intval($row['cost']);
+                $totalCost += intval($row['cost']);
             }
         }
         
         $result = [
+            'items' => $items,
             'label' => implode(", ", $label),
-            'cost' => $this->getCurrency($totalCost)
+            'total' => $this->getCurrency($totalCost)
         ];
         return $result;
     }

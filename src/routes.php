@@ -29,7 +29,7 @@ return function (App $app) {
     $app->group('/service', function(App $app) {
         $app->post('/', '\Service:createService');
         $app->get('/', '\Service:getServices');
-        $app->get('/active[/]', '\Service:getActiveService');
+        $app->get('/get/{id}[/]', '\Service:getServiceById');
         $app->get('/category/[{id}]', '\Service:getCategory');
         $app->patch('/{id}/status', '\Service:setStatus');
     });
