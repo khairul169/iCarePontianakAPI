@@ -15,6 +15,13 @@ class Service {
         $this->api = $c->get('api');
     }
 
+    private function findTindakanByName($name) {
+        $stmt = $this->db->prepare("SELECT id FROM service_actions WHERE name=:name LIMIT 1");
+        $stmt->execute([':name' => $name]);
+        $result = $stmt->fetch();
+        return $result ? $result['id'] : false;
+    }
+
     function createService(Request $request, Response $response) {
         // get userid from token
         $userId = $request->getAttribute('token')['id'];
@@ -27,28 +34,36 @@ class Service {
         // data is empty
         if (!$data || !$location)
             return $this->api->fail("Data is empty");
-
-        // encode data
-        $data = json_encode($data);
+        
+        $tindakan = isset($data['tindakan']) ? $this->findTindakanByName($data['tindakan']) : '';
 
         // insert data
-        $sql = "INSERT INTO service (user, type, data, lat, lng, timestamp)
-        VALUES (:id, :type, :data, :lat, :lng, :time)";
+        $sql = "INSERT INTO service
+            (user, type, lat, lng, timestamp, keluhan, tindakan, diagnosa, alamat, waktu) VALUES
+            (:id, :type, :lat, :lng, :time, :keluhan, :tindakan, :diagnosa, :alamat, :waktu)";
 
         $query = $this->db->prepare($sql);
         $res = $query->execute([
             ':id'   => $userId,
             ':type' => $type,
-            ':data' => $data,
             ':lat'  => $location['latitude'],
             ':lng'  => $location['longitude'],
-            ':time' => time()
+            ':time' => time(),
+
+            // fields
+            ':keluhan'  => $data['keluhan'] ?? '',
+            ':tindakan' => $tindakan,
+            ':diagnosa' => $data['diagnosa'] ?? '',
+            ':alamat'   => $data['alamat'] ?? '',
+            ':waktu'    => $data['waktu'] ?? 0,
         ]);
 
-        // success
         if ($res) {
-            $resId = $this->db->lastInsertId();
-            return $this->api->success($resId);
+            // get id from last insert id
+            $serviceId = $this->db->lastInsertId();
+
+            // return service id
+            return $this->api->success($serviceId);
         }
 
         // fail
@@ -67,10 +82,10 @@ class Service {
 
         // select user
         if ($self) {
-            $service['user'] = $service['taker'];
+            $service['user'] = $service['nakes'];
         }
 
-        unset($service['taker']);
+        unset($service['nakes']);
 
         // get users data
         $userColumns = 'id, type, name, phone, image, last_active';
@@ -84,12 +99,12 @@ class Service {
     function getActiveService(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
 
-        // update caretaker
-        $this->updateCareTaker();
+        // update nakes
+        $this->updateNakes();
 
         $sql = "SELECT s.*, c.name as layanan FROM service AS s
             LEFT JOIN service_categories AS c ON s.type=c.id
-            HAVING (s.user=:id OR s.taker=:id) AND s.status=1
+            HAVING (s.user=:id OR s.nakes=:id) AND s.status=1
             ORDER BY id DESC LIMIT 1";
 
         $query = $this->db->prepare($sql);
@@ -103,14 +118,14 @@ class Service {
     function getServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
 
-        // update caretaker
-        $this->updateCareTaker();
+        // update nakes
+        $this->updateNakes();
 
         $result = [];
 
         // fetch service
-        $sql = "SELECT id, user, taker, tindakan, status, waktu, alamat
-            FROM service WHERE (user=:id OR taker=:id)
+        $sql = "SELECT id, user, nakes, tindakan, status, waktu, alamat
+            FROM service WHERE (user=:id OR nakes=:id)
             ORDER BY id DESC LIMIT 20";
         
         $query = $this->db->prepare($sql);
@@ -119,7 +134,7 @@ class Service {
         foreach ($query->fetchAll() as $row) {
             // user
             $self = ($row['user'] == $userId);
-            $user = $self ? $row['taker'] : $row['user'];
+            $user = $self && $row['nakes'] ? $row['nakes'] : $row['user'];
             $user = $this->api->getUserById($user, 'id, name, type, image, phone');
 
             // service
@@ -133,7 +148,7 @@ class Service {
                 "tindakan" => $tindakan
             ];
 
-            if ($row['status'] == 1) {
+            if ($row['status'] <= 1) {
                 $item['waktu'] = strftime('%e %B %Y %H:%M', $row['waktu']);
                 $item['alamat'] = $row['alamat'];
             }
@@ -184,7 +199,7 @@ class Service {
             return $this->api->fail('ID or status is not valid');
         
         // find service
-        $query = $this->db->prepare("SELECT user, taker FROM service WHERE id=:id LIMIT 1");
+        $query = $this->db->prepare("SELECT user, nakes FROM service WHERE id=:id LIMIT 1");
         $query->execute([':id' => $id]);
         $service = $query->fetch();
 
@@ -219,37 +234,33 @@ class Service {
         
         // create notification
         if (!empty($message)) {
-            $user = $service['user']; $taker = $service['taker'];
+            $user = $service['user']; $nakes = $service['nakes'];
             $message = ":OBJECT telah $message layanan #$id.";
-            $this->api->broadcast([$user, $taker], $title, $message, $userId);
+            $this->api->broadcast([$user, $nakes], $title, $message, $userId);
         }
 
         return $this->api->success();
     }
 
-    private function updateCareTaker() {
-        $sql = "SELECT id, user, type, lat, lng FROM service WHERE taker=0 AND status=1 LIMIT 10";
+    private function updateNakes() {
+        $sql = "SELECT id, user, type, lat, lng FROM service WHERE nakes=0 AND status=0 LIMIT 10";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
 
         foreach ($stmt->fetchAll() as $row) {
-            if ($row['type'] <= 1)
-                continue;
-
-            // update service taker
-            $this->findCareTaker($row['id'], $row['user'], $row['type'], $row['lat'], $row['lng']);
+            // update nakes
+            $this->findNakes($row['id'], $row['user'], $row['type'], $row['lat'], $row['lng']);
         }
     }
 
-    private function findCareTaker($id, $user, $type, $latitude, $longitude) {
-        // find service taker
-        $sql = "SELECT u.id, u.type, u.active, COUNT(s.id) as services, (6371 * acos(
-            cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng) - radians(:lng)) + 
-            sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
-        FROM users AS u
-        LEFT JOIN service AS s ON s.taker=u.id AND s.status=1 GROUP BY u.id
-        HAVING u.id!=:user AND u.type=:type AND u.active=1 AND services < 1 AND distance < 200
-        ORDER BY distance LIMIT 1";
+    private function findNakes($id, $user, $type, $latitude, $longitude) {
+        // find nakes
+        $sql = "SELECT u.id, u.kategori_layanan, u.active, COUNT(s.id) as services,
+            (6371 * acos(cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
+            FROM users AS u
+            LEFT JOIN service AS s ON s.nakes=u.id AND s.status=0 GROUP BY u.id
+            HAVING u.id!=:user AND u.kategori_layanan=:type AND u.active=1 AND services < 1 AND distance < 200
+            ORDER BY distance LIMIT 1";
         
         // exec query
         $query = $this->db->prepare($sql);
@@ -264,8 +275,8 @@ class Service {
         // update caretaker
         if ($result) {
             $nakes = $result['id'];
-            $stmt = $this->db->prepare("UPDATE service SET taker=:taker WHERE id=:id LIMIT 1");
-            $stmt->execute([':id' => $id, ':taker' => $nakes]);
+            $stmt = $this->db->prepare("UPDATE service SET status=1, nakes=:nakes WHERE id=:id LIMIT 1");
+            $stmt->execute([':id' => $id, ':nakes' => $nakes]);
             
             // create notification
             $nakesName = $this->api->getUserName($nakes);
@@ -328,9 +339,10 @@ class Service {
     private function getServiceStatus($status) {
         $status = intval($status);
         $value = [
+            'Mencari Nakes',
+            'Sedang Berjalan',
+            'Batal',
             'Selesai',
-            'Menunggu Nakes',
-            'Batal'
         ];
         return isset($value[$status]) ? $value[$status] : false;
     }
