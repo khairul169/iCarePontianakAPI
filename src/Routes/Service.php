@@ -134,6 +134,10 @@ class Service {
         $user = $this->api->getUserById($user, 'id, name, type, image, phone');
 
         // service
+        $location = [
+            'latitude' => floatval($row['lat']),
+            'longitude' => floatval($row['lng'])
+        ];
         $tindakan = $this->getTindakan($row['tindakan']);
         $status = $this->getServiceStatus($row['status']);
         $waktu = strftime('%e %B %Y %H:%M', $row['waktu']);
@@ -143,6 +147,7 @@ class Service {
             'client' => $client,
             'user' => $user,
             'status' => $status,
+            'location' => $location,
             'keluhan' => $row['keluhan'],
             'tindakan' => $tindakan,
             'diagnosa' => $row['diagnosa'],
