@@ -140,12 +140,14 @@ class Service {
             // service
             $tindakan = $this->getTindakan($row['tindakan']);
             $status = $this->getServiceStatus($row['status']);
+            $kontak = $row['status'] == 1 && $row['nakes'];
 
             $item = [
                 "id" => $row['id'],
                 "user" => $user,
                 "status" => $status,
-                "tindakan" => $tindakan
+                "tindakan" => $tindakan,
+                "kontak" => $kontak
             ];
 
             if ($row['status'] <= 1) {
