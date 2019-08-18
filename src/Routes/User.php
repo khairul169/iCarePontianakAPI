@@ -29,7 +29,7 @@ class User {
 
     private function getUserInfo($id) {
         // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng, active
+        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng, active, gender
             FROM users WHERE id=:id";
         $query = $this->db->prepare($sql);
         $query->execute([':id' => $id]);
@@ -71,6 +71,10 @@ class User {
             // set user name
             case 'name':
                 return $this->setUserCol($userId, 'name', trim($value));
+            
+            // set phone number
+            case 'gender':
+                return $this->setUserCol($userId, 'gender', trim($value));
             
             // set password
             case 'password':
