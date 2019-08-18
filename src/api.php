@@ -37,8 +37,12 @@ class API {
     function fail($message = null) {
         return $this->response->withJson(array(
             'success'   => false,
-            'message'   => empty($message) ? "Undefined" : $message
+            'message'   => empty($message) ? "Unknown" : $message
         ), 501);
+    }
+
+    function result($result) {
+        return $result ? $this->success($result) : $this->fail();
     }
 
     function error($message = null) {
@@ -132,7 +136,6 @@ class API {
     }
 
     function getUserRole($type) {
-        $type = intval($type);
         $roles = [
             'Undefined',
             'Klien',
@@ -144,6 +147,15 @@ class API {
             'Ahli Gizi'
         ];
         return !empty($roles[$type]) ? $roles[$type] : false;
+    }
+
+    function getGenderById($gender) {
+        $genderList = [
+            'Tidak diketahui',
+            'Laki-laki',
+            'Perempuan'
+        ];
+        return !empty($genderList[$gender]) ? $genderList[$gender] : false;
     }
 }
 ?>

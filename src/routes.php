@@ -5,6 +5,7 @@ use \Slim\App;
 // routes
 require_once __DIR__ . '/Routes/Auth.php';
 require_once __DIR__ . '/Routes/User.php';
+require_once __DIR__ . '/Routes/Clients.php';
 require_once __DIR__ . '/Routes/Service.php';
 require_once __DIR__ . '/Routes/Notification.php';
 require_once __DIR__ . '/Routes/Ambulance.php';
@@ -25,13 +26,21 @@ return function (App $app) {
         $app->patch('/{type}', '\User:setData');
     });
 
+    // clients
+    $app->group('/client', function(App $app) {
+        $app->get('/', '\Clients:getClients');
+        $app->get('/{id}', '\Clients:getClient');
+    });
+
     // service
     $app->group('/service', function(App $app) {
-        $app->post('/', '\Service:createService');
-        $app->get('/', '\Service:getServices');
-        $app->get('/get/{id}[/]', '\Service:getServiceById');
-        $app->get('/category/[{id}]', '\Service:getCategory');
-        $app->patch('/{id}/status', '\Service:setStatus');
+        $app->get('/category', '\Service:getCategories');
+        $app->get('/category/{id}', '\Service:getCategory');
+        $app->post('/create', '\Service:createService');
+        $app->get('/lists', '\Service:getServices');
+        $app->get('/view/{id}', '\Service:getServiceById');
+        $app->patch('/cancel/{id}', '\Service:setCanceled');
+        $app->patch('/finish/{id}', '\Service:setFinished');
     });
 
     // notification

@@ -158,32 +158,53 @@ class Service {
         return $this->api->success($item);
     }
 
-    function getCategory(Request $request, Response $response, array $args) {
-        // args
-        $serviceId = !empty($args['id']) ? (int) $args['id'] : false;
-
+    function getCategories(Request $request, Response $response, array $args) {
         $result = [];
-        $sql = "SELECT id, name, icon FROM service_categories";
+        $stmt = $this->db->prepare("SELECT id, name, icon FROM service_categories");
+        $stmt->execute();
 
-        if ($serviceId) {
-            $sql .= " WHERE id=:id LIMIT 1";
-        }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':id' => $serviceId ?: $serviceId]);
-        $categories = $stmt->fetchAll();
-
-        foreach ($categories as $category) {
-            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:categoryId";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':categoryId' => $category['id']]);
-            
-            $category['actions'] = $stmt->fetchAll();
-            $category['icon'] = $this->api->getUrl($category['icon']);
-            $result[] = $category;
+        foreach ($stmt->fetchAll() as $row) {
+            $row['icon'] = $this->api->getUrl($row['icon']);
+            $result[] = $row;
         }
 
         return $this->api->success($result);
+    }
+
+    function getCategory(Request $request, Response $response, array $args) {
+        $categoryId = !empty($args['id']) ? intval($args['id']) : 0;
+        $sql = "SELECT id, name FROM service_categories WHERE id=:id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $categoryId]);
+        $result = $stmt->fetch();
+
+        // fetch actions
+        if ($result) {
+            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:id";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':id' => $categoryId]);
+            $result['actions'] = $stmt->fetchAll();
+        }
+
+        return $this->api->success($result);
+    }
+
+    function setCanceled(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        $id = $args['id'] ?? null;
+
+        $stmt = $this->db->prepare("UPDATE service SET status=2 WHERE id=:id AND user=:user");
+        $result = $stmt->execute([':id' => $id, ':user' => $userId]);
+        return $this->api->result($result);
+    }
+
+    function setFinished(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        $id = $args['id'] ?? null;
+        
+        $stmt = $this->db->prepare("UPDATE service SET status=3 WHERE id=:id AND taker=:user");
+        $result = $stmt->execute([':id' => $id, ':user' => $userId]);
+        return $this->api->result($result);
     }
 
     function setStatus(Request $request, Response $response, array $args) {
@@ -291,20 +312,6 @@ class Service {
         }
 
         return $result ? $result['id'] : 0;
-    }
-
-    private function getStatusIdByName($status) {
-        $statusId = [
-            'failed',
-            'active',
-            'success',
-            'cancel'
-        ];
-        foreach ($statusId as $key => $value) {
-            if ($value == $status)
-                return $key;
-        }
-        return null;
     }
 
     private function getCurrency($amount) {
