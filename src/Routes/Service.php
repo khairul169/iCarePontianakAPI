@@ -312,7 +312,7 @@ class Service {
     }
 
     private function getTindakan($tindakan) {
-        $tindakan = explode(', ', $tindakan);
+        $tindakan = explode(',', $tindakan);
         $items = [];
         $label = [];
         $totalCost = 0;
