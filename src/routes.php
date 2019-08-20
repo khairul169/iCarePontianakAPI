@@ -36,6 +36,7 @@ return function (App $app) {
     $app->group('/service', function(App $app) {
         $app->get('/category', '\Service:getCategories');
         $app->get('/category/{id}', '\Service:getCategory');
+        $app->post('/nakes', '\Service:searchNakes');
         $app->post('/create', '\Service:createService');
         $app->get('/lists', '\Service:getServices');
         $app->get('/view/{id}', '\Service:getServiceById');

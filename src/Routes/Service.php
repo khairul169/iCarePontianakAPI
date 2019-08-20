@@ -15,11 +15,91 @@ class Service {
         $this->api = $c->get('api');
     }
 
-    private function findTindakanByName($name) {
-        $stmt = $this->db->prepare("SELECT id FROM service_actions WHERE name=:name LIMIT 1");
-        $stmt->execute([':name' => $name]);
+    function getCategories(Request $request, Response $response, array $args) {
+        $result = [];
+        $stmt = $this->db->prepare("SELECT id, name, icon FROM service_categories");
+        $stmt->execute();
+
+        foreach ($stmt->fetchAll() as $row) {
+            $row['icon'] = $this->api->getUrl($row['icon']);
+            $result[] = $row;
+        }
+
+        return $this->api->success($result);
+    }
+
+    function getCategory(Request $request, Response $response, array $args) {
+        $categoryId = !empty($args['id']) ? intval($args['id']) : 0;
+        $sql = "SELECT id, name FROM service_categories WHERE id=:id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $categoryId]);
         $result = $stmt->fetch();
-        return $result ? $result['id'] : false;
+
+        // fetch actions
+        if ($result) {
+            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:id ORDER BY name ASC";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':id' => $categoryId]);
+            $tindakan = [];
+
+            foreach ($stmt->fetchAll() as $row) {
+                $row['cost'] = $this->getCurrency($row['cost']);
+                $tindakan[] = $row;
+            }
+
+            $result['actions'] = $tindakan;
+        }
+
+        return $this->api->success($result);
+    }
+
+    function searchNakes(Request $request, Response $response) {
+        $userId = $request->getAttribute('token')['id'];
+        $kategori = $request->getParsedBodyParam('kategori');
+        $lokasi = $request->getParsedBodyParam('lokasi');
+        $exclude = $request->getParsedBodyParam('exclude');
+
+        if (!$kategori || !$lokasi || empty($lokasi['latitude']) || empty($lokasi['longitude']))
+            return $this->api->fail();
+        
+        $exclusion = is_array($exclude) ? implode("','", array_map('intval', $exclude)) : '';
+
+        $sql = "SELECT u.id, u.type, u.name, u.image, u.pelayanan, u.active, u.gender,
+            u.lat, u.lng,
+            -- nakes service counts
+            COUNT(s.id) as services,
+            -- get distance between user and nakes
+            (6371 * acos(cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng)
+            - radians(:lng)) + sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
+            FROM users AS u
+            LEFT JOIN service AS s ON s.nakes=u.id AND s.status=1 GROUP BY u.id
+            -- limit user and service type
+            HAVING u.id!=:user AND u.pelayanan=:type AND u.active=1 AND services=0
+            -- max distance
+            AND distance<200
+            -- filter user
+            AND u.id NOT IN ('$exclusion')
+            ORDER BY distance LIMIT 1";
+        
+        // exec query
+        $query = $this->db->prepare($sql);
+        $query->execute([
+            ':user' => $userId,
+            ':type' => $kategori,
+            ':lat'  => $lokasi['latitude'],
+            ':lng'  => $lokasi['longitude']
+        ]);
+        $result = $query->fetch();
+
+        if ($result) {
+            $result['type'] = $this->api->getUserRole($result['type']);
+            $result['image'] = $this->api->getUserImageUrl($result['image']);
+            $result['gender'] = $this->api->getGenderById($result['gender']);
+            $result['distance'] = number_format($result['distance'], 1, '.', '') . ' km';
+            $result['lat'] = (float) $result['lat'];
+            $result['lng'] = (float) $result['lng'];
+        }
+        return $this->api->success($result);
     }
 
     function createService(Request $request, Response $response) {
@@ -156,37 +236,6 @@ class Service {
         ];
 
         return $this->api->success($item);
-    }
-
-    function getCategories(Request $request, Response $response, array $args) {
-        $result = [];
-        $stmt = $this->db->prepare("SELECT id, name, icon FROM service_categories");
-        $stmt->execute();
-
-        foreach ($stmt->fetchAll() as $row) {
-            $row['icon'] = $this->api->getUrl($row['icon']);
-            $result[] = $row;
-        }
-
-        return $this->api->success($result);
-    }
-
-    function getCategory(Request $request, Response $response, array $args) {
-        $categoryId = !empty($args['id']) ? intval($args['id']) : 0;
-        $sql = "SELECT id, name FROM service_categories WHERE id=:id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':id' => $categoryId]);
-        $result = $stmt->fetch();
-
-        // fetch actions
-        if ($result) {
-            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:id";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':id' => $categoryId]);
-            $result['actions'] = $stmt->fetchAll();
-        }
-
-        return $this->api->success($result);
     }
 
     function setCanceled(Request $request, Response $response, array $args) {
