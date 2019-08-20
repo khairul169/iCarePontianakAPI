@@ -261,7 +261,7 @@ class Service {
         $userId = $request->getAttribute('token')['id'];
         $id = $args['id'] ?? null;
         
-        $stmt = $this->db->prepare("UPDATE service SET status=3 WHERE id=:id AND taker=:user");
+        $stmt = $this->db->prepare("UPDATE service SET status=3 WHERE id=:id AND nakes=:user");
         $result = $stmt->execute([':id' => $id, ':user' => $userId]);
         return $this->api->result($result);
     }
