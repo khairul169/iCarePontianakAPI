@@ -218,7 +218,7 @@ class Service {
         $client = ($row['user'] == $userId);
         $user = $client && $row['nakes'] ? $row['nakes'] : $row['user'];
         $user = $this->api->getUserById($user, 'id, name, type, image, phone');
-
+        
         // service
         $location = [
             'latitude' => floatval($row['lat']),
@@ -227,6 +227,13 @@ class Service {
         $tindakan = $this->getTindakan($row['tindakan']);
         $status = $this->getServiceStatus($row['status']);
         $waktu = strftime('%e %B %Y %H:%M', $row['waktu']);
+
+        // fetch lokasi nakes
+        $lokasiNakes = $this->api->getUserById($row['nakes'], 'lat, lng');
+        $lokasiNakes = $lokasiNakes ? [
+            'latitude' => (float) $lokasiNakes['lat'],
+            'longitude' => (float) $lokasiNakes['lng'],
+        ] : false;
 
         $item = [
             'id' => $row['id'],
@@ -242,7 +249,8 @@ class Service {
             'tindakan' => $tindakan,
             'alamat' => $row['alamat'],
             'waktu' => $waktu,
-            'isClient' => $client
+            'isClient' => $client,
+            'lokasiNakes' => $lokasiNakes
         ];
 
         return $this->api->success($item);
