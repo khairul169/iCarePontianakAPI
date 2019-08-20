@@ -202,8 +202,13 @@ class Service {
         $id = $args['id'] ?? 0;
 
         // fetch service
-        $stmt = $this->db->prepare("SELECT * FROM service WHERE id=:id LIMIT 1");
-        $stmt->execute([':id' => $id]);
+        $sql = "SELECT service.*,
+            c.nama as nama_klien, c.diagnosa as diagnosa
+            FROM service
+            LEFT JOIN clients AS c ON c.id=service.klien
+            HAVING service.id=? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
         $row = $stmt->fetch();
 
         if (!$row)
@@ -225,15 +230,19 @@ class Service {
 
         $item = [
             'id' => $row['id'],
-            'client' => $client,
             'user' => $user,
             'status' => $status,
             'location' => $location,
+            'klien' => [
+                'id' => $row['klien'],
+                'nama' => $row['nama_klien']
+            ],
+            'diagnosa' => $row['diagnosa'],
             'keluhan' => $row['keluhan'],
             'tindakan' => $tindakan,
-            'diagnosa' => $row['diagnosa'],
             'alamat' => $row['alamat'],
-            'waktu' => $waktu
+            'waktu' => $waktu,
+            'isClient' => $client
         ];
 
         return $this->api->success($item);
