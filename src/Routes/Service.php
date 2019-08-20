@@ -423,7 +423,7 @@ class Service {
         // query
         $sql = "SELECT u.id, u.active, COUNT(s.id) as services
             FROM users AS u LEFT JOIN service AS s ON s.nakes=u.id AND s.status=1
-            HAVING u.id=? AND u.active=1 AND services=0 LIMIT 1";
+            GROUP BY u.id HAVING u.id=? AND u.active=1 AND services=0 LIMIT 1";
         
         // fetch query
         $stmt = $this->db->prepare($sql);
