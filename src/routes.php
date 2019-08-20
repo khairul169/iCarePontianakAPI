@@ -30,6 +30,9 @@ return function (App $app) {
     $app->group('/client', function(App $app) {
         $app->get('/', '\Clients:getClients');
         $app->get('/{id}', '\Clients:getClient');
+        $app->post('/', '\Clients:addClient');
+        $app->patch('/{id}', '\Clients:updateClient');
+        $app->delete('/{id}', '\Clients:removeClient');
     });
 
     // service

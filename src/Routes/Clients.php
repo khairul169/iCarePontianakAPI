@@ -44,6 +44,84 @@ class Clients {
 
         return $this->api->result($row);
     }
+
+    function addClient(Request $request, Response $response) {
+        $userId = $request->getAttribute('token')['id'];
+        
+        // params
+        $data = $request->getParsedBodyParam('data');
+        $params = ['nama', 'umur', 'gender'];
+
+        if ($this->api->paramIsEmpty($data, $params)) {
+            return $this->api->fail('Cek data');
+        }
+
+        $sql = "INSERT INTO clients
+            (user, nama, umur, gender, diagnosa, riwayat, alergi)
+            VALUES (?, ?, ?, ?, ?, ?, ?)";
+        
+        $values = [
+            $userId,
+            $data['nama'],
+            $data['umur'],
+            $data['gender'],
+            $data['diagnosa'] ?? '',
+            $data['riwayat'] ?? '',
+            $data['alergi'] ?? '',
+        ];
+
+        $stmt = $this->db->prepare($sql);
+        $result = $stmt->execute($values);
+
+        return $this->api->result($result);
+    }
+
+    function updateClient(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        
+        // params
+        $id = !empty($args['id']) ? (int) $args['id'] : 0;
+        $data = $request->getParsedBodyParam('data');
+        $params = ['nama', 'umur', 'gender'];
+
+        if ($this->api->paramIsEmpty($data, $params)) {
+            return $this->api->fail('Cek data');
+        }
+
+        $sql = "UPDATE clients
+            SET nama=?, umur=?, gender=?, diagnosa=?, riwayat=?, alergi=?
+            WHERE id=? AND user=? LIMIT 1";
+        
+        $values = [
+            $data['nama'],
+            $data['umur'],
+            $data['gender'],
+            $data['diagnosa'] ?? '',
+            $data['riwayat'] ?? '',
+            $data['alergi'] ?? '',
+            $id,
+            $userId
+        ];
+
+        $stmt = $this->db->prepare($sql);
+        $result = $stmt->execute($values);
+
+        return $this->api->result($result);
+    }
+
+    function removeClient(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        
+        // params
+        $id = !empty($args['id']) ? (int) $args['id'] : 0;
+
+        // delete client
+        $sql = "DELETE FROM clients WHERE id=? AND user=? LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $result = $stmt->execute([$id, $userId]);
+
+        return $this->api->result($result);
+    }
 }
 
 ?>
