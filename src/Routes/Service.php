@@ -95,7 +95,7 @@ class Service {
             $result['type'] = $this->api->getUserRole($result['type']);
             $result['image'] = $this->api->getUserImageUrl($result['image']);
             $result['gender'] = $this->api->getGenderById($result['gender']);
-            $result['distance'] = number_format($result['distance'], 1, '.', '') . ' km';
+            $result['distance'] = number_format($result['distance'], 1, ',', '') . ' km';
             $result['lat'] = (float) $result['lat'];
             $result['lng'] = (float) $result['lng'];
         }
@@ -235,6 +235,9 @@ class Service {
             'longitude' => (float) $lokasiNakes['lng'],
         ] : false;
 
+        // rincian biaya
+        $biaya = $this->getRincianBiaya($row['id'], $lokasiNakes);
+
         $item = [
             'id' => $row['id'],
             'user' => $user,
@@ -250,7 +253,8 @@ class Service {
             'alamat' => $row['alamat'],
             'waktu' => $waktu,
             'isClient' => $client,
-            'lokasiNakes' => $lokasiNakes
+            'lokasiNakes' => $lokasiNakes,
+            'biaya' => $biaya
         ];
 
         return $this->api->success($item);
@@ -388,8 +392,6 @@ class Service {
     private function getTindakan($tindakan) {
         $tindakan = explode(',', $tindakan);
         $items = [];
-        $label = [];
-        $totalCost = 0;
 
         if (is_array($tindakan)) {
             $inQuery = join(',', array_fill(0, count($tindakan), '?'));
@@ -403,17 +405,28 @@ class Service {
                     'name' => $row['name'],
                     'cost' => $this->getCurrency($row['cost'])
                 ];
-                $label[] = $row['name'];
+            }
+        }
+
+        return $items;
+    }
+
+    private function getTotalBiayaTindakan($tindakan) {
+        $tindakan = explode(',', $tindakan);
+        $totalCost = 0;
+
+        if (is_array($tindakan)) {
+            $inQuery = join(',', array_fill(0, count($tindakan), '?'));
+            $sql = "SELECT cost FROM service_actions WHERE id IN ($inQuery)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($tindakan);
+            
+            foreach ($stmt->fetchAll() as $row) {
                 $totalCost += intval($row['cost']);
             }
         }
-        
-        $result = [
-            'items' => $items,
-            'label' => implode(", ", $label),
-            'total' => $this->getCurrency($totalCost)
-        ];
-        return $result;
+
+        return $totalCost;
     }
 
     private function getServiceStatus($status) {
@@ -437,6 +450,55 @@ class Service {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->rowCount() > 0;
+    }
+
+    private function getRincianBiaya($id, $lokasiNakes) {
+        $sql = "SELECT id, tindakan,
+            -- jarak nakes
+            (6371 * acos(cos(radians(:lat)) * cos(radians(s.lat)) * cos(radians(s.lng)
+            - radians(:lng)) + sin(radians(:lat)) * sin(radians(s.lat)))) AS distance
+            --
+            FROM service AS s WHERE id=:id LIMIT 1";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':id' => $id,
+            ':lat' => $lokasiNakes['latitude'] ?? 0.0,
+            ':lng' => $lokasiNakes['longitude'] ?? 0.0
+        ]);
+        $layanan = $stmt->fetch();
+
+        if (!$layanan) {
+            return false;
+        }
+
+        $jarak = isset($layanan['distance']) ? round(floatval($layanan['distance']), 2) : 0;
+        $jarakString = number_format($jarak, 1, ',', '') . ' km';
+
+        $biayaTindakan = $this->getTotalBiayaTindakan($layanan['tindakan']);
+        $totalBiaya = $biayaTindakan;
+        $biayaJalan = $jarak * 5000;
+        $totalBiaya += $biayaJalan;
+        $pajak = $totalBiaya * 0.05;
+        $totalBiaya += $pajak;
+
+        return [
+            'rincian' => [
+                    [
+                        'title' => 'Biaya Tindakan',
+                        'cost' => $this->getCurrency($biayaTindakan)
+                    ],
+                    [
+                        'title' => "Jarak Layanan ($jarakString)",
+                        'cost' => $this->getCurrency($biayaJalan)
+                    ],
+                    [
+                        'title' => 'Pajak 5%',
+                        'cost' => $this->getCurrency($pajak)
+                    ]
+                ],
+            'total' => $this->getCurrency($totalBiaya)
+        ];
     }
 }
 ?>
