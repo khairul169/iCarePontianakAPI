@@ -18,7 +18,7 @@ class Clients {
     function getClients(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
 
-        $stmt = $this->db->prepare("SELECT * FROM clients WHERE user=:id");
+        $stmt = $this->db->prepare("SELECT * FROM clients WHERE user=:id ORDER BY nama ASC");
         $stmt->execute([':id' => $userId]);
         $result = [];
 
