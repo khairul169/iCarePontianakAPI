@@ -107,46 +107,47 @@ class Service {
         $userId = $request->getAttribute('token')['id'];
 
         // params
-        $type = $request->getParsedBodyParam('type', 0);
         $data = $request->getParsedBodyParam('data');
-        $location = $request->getParsedBodyParam('location');
+        $dataParams = ['type', 'tindakan', 'klien', 'keluhan', 'alamat', 'lokasi', 'waktu', 'nakes'];
 
         // data is empty
-        if (!$data || !$location)
-            return $this->api->fail("Data is empty");
-        
-        $tindakan = isset($data['tindakan']) ? $this->findTindakanByName($data['tindakan']) : '';
-
-        // insert data
-        $sql = "INSERT INTO service
-            (user, type, lat, lng, timestamp, keluhan, tindakan, diagnosa, alamat, waktu) VALUES
-            (:id, :type, :lat, :lng, :time, :keluhan, :tindakan, :diagnosa, :alamat, :waktu)";
-
-        $query = $this->db->prepare($sql);
-        $res = $query->execute([
-            ':id'   => $userId,
-            ':type' => $type,
-            ':lat'  => $location['latitude'],
-            ':lng'  => $location['longitude'],
-            ':time' => time(),
-
-            // fields
-            ':keluhan'  => $data['keluhan'] ?? '',
-            ':tindakan' => $tindakan,
-            ':diagnosa' => $data['diagnosa'] ?? '',
-            ':alamat'   => $data['alamat'] ?? '',
-            ':waktu'    => $data['waktu'] ?? 0,
-        ]);
-
-        if ($res) {
-            // get id from last insert id
-            $serviceId = $this->db->lastInsertId();
-
-            // return service id
-            return $this->api->success($serviceId);
+        if ($this->api->paramIsEmpty($data, $dataParams)) {
+            return $this->api->fail("Mohon lengkapi data yang ada");
         }
 
-        // fail
+        // nakes is not available
+        if (!$this->isNakesAvailable($data['nakes'])) {
+            return $this->api->fail('Nakes tidak tersedia');
+        }
+        
+        $tindakan = is_array($data['tindakan'])
+            ? implode(',', array_map('intval', $data['tindakan']))
+            : '';
+
+        // insert data
+        $values = [
+            'user' => $userId,
+            'type' => (int) $data['type'],
+            'tindakan' => $tindakan,
+            'klien' => $data['klien'],
+            'keluhan' => $data['keluhan'],
+            'alamat' => $data['alamat'],
+            'lat' => $data['lokasi']['latitude'],
+            'lng' => $data['lokasi']['longitude'],
+            'waktu' => $data['waktu'],
+            'nakes' => $data['nakes']
+        ];
+        $columns = implode(', ', array_keys($values));
+        $placeholders = implode(',', array_fill(0, count($values), '?'));
+
+        $sql = "INSERT INTO service ($columns) VALUES ($placeholders)";
+        $query = $this->db->prepare($sql);
+        $res = $query->execute(array_values($values));
+
+        if ($res) {
+            $serviceId = (int) $this->db->lastInsertId();
+            return $this->api->success($serviceId);
+        }
         return $this->api->fail("Cannot insert data!");
     }
 
@@ -407,6 +408,18 @@ class Service {
             'Selesai',
         ];
         return isset($value[$status]) ? $value[$status] : false;
+    }
+
+    private function isNakesAvailable($id) {
+        // query
+        $sql = "SELECT u.id, u.active, COUNT(s.id) as services
+            FROM users AS u LEFT JOIN service AS s ON s.nakes=u.id AND s.status=1
+            HAVING u.id=? AND u.active=1 AND services=0 LIMIT 1";
+        
+        // fetch query
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
     }
 }
 ?>

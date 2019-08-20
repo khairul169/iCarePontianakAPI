@@ -38,7 +38,7 @@ class API {
         return $this->response->withJson(array(
             'success'   => false,
             'message'   => empty($message) ? "Unknown" : $message
-        ), 501);
+        ));
     }
 
     function result($result) {
@@ -156,6 +156,16 @@ class API {
             'Perempuan'
         ];
         return !empty($genderList[$gender]) ? $genderList[$gender] : false;
+    }
+
+    function paramIsEmpty($params, array $keys) {
+        if (!$params || !is_array($params)) return true;
+
+        foreach ($keys as $key) {
+            if (empty($params[$key]))
+                return true;
+        }
+        return false;
     }
 }
 ?>
