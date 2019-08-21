@@ -84,6 +84,24 @@ class Emergency {
 
         return $this->api->result($result);
     }
+
+    function getAmbulance(Request $request, Response $response, array $args) {
+        $stmt = $this->db->prepare("SELECT * FROM ambulance");
+        $stmt->execute();
+        $result = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $row['coordinate'] = [
+                'latitude' => (float) $row['lat'],
+                'longitude' => (float) $row['lng'],
+            ];
+            unset($row['lat']);
+            unset($row['lng']);
+            $result[] = $row;
+        }
+
+        return $this->api->success($result);
+    }
 }
 
 ?>

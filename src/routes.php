@@ -8,7 +8,6 @@ require_once __DIR__ . '/Routes/User.php';
 require_once __DIR__ . '/Routes/Clients.php';
 require_once __DIR__ . '/Routes/Service.php';
 require_once __DIR__ . '/Routes/Notification.php';
-require_once __DIR__ . '/Routes/Ambulance.php';
 require_once __DIR__ . '/Routes/Emergency.php';
 
 return function (App $app) {
@@ -53,15 +52,11 @@ return function (App $app) {
         $app->get('/', '\Notification:getAll');
     });
 
-    // ambulance
-    $app->group('/ambulance', function(App $app) {
-        $app->get('/', '\Ambulance:getAll');
-    });
-
     // emergency
     $app->group('/emergency', function(App $app) {
         $app->get('/', '\Emergency:getLists');
         $app->post('/', '\Emergency:create');
-        $app->get('/{id}', '\Emergency:getById');
+        $app->get('/view/{id}', '\Emergency:getById');
+        $app->get('/ambulance', '\Emergency:getAmbulance');
     });
 };
