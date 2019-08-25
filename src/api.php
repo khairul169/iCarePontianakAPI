@@ -119,8 +119,9 @@ class API {
             $this->onesignal->sendToId($user['device_id'], 'notification', $title, $message);
         }
 
-        $stmt = $this->db->prepare("INSERT INTO notification (user, content, timestamp) VALUES (:id, :msg, :time)");
-        return $stmt->execute([':id' => $id, ':msg' => $message, ':time' => time()]);
+        /*$stmt = $this->db->prepare("INSERT INTO notification (user, content, timestamp) VALUES (:id, :msg, :time)");
+        return $stmt->execute([':id' => $id, ':msg' => $message, ':time' => time()]);*/
+        return true;
     }
 
     function broadcast(array $users, string $title, string $message, $object = null) {

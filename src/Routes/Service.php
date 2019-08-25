@@ -146,6 +146,11 @@ class Service {
 
         if ($res) {
             $serviceId = (int) $this->db->lastInsertId();
+
+            // notify nakes
+            $this->api->notify($data['nakes'], "Layanan baru", "Anda telah mendapatkan layanan baru! Silahkan hubungi klien anda untuk info lanjut.");
+
+            // return service id
             return $this->api->success($serviceId);
         }
         return $this->api->fail("Cannot insert data!");
@@ -153,9 +158,6 @@ class Service {
 
     function getServices(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
-
-        // update nakes
-        $this->updateNakes();
 
         $result = [];
 
@@ -264,8 +266,16 @@ class Service {
         $userId = $request->getAttribute('token')['id'];
         $id = $args['id'] ?? null;
 
-        $stmt = $this->db->prepare("UPDATE service SET status=2 WHERE id=:id AND user=:user");
+        $stmt = $this->db->prepare("UPDATE service SET status=2 WHERE id=:id AND user=:user AND status=1");
         $result = $stmt->execute([':id' => $id, ':user' => $userId]);
+
+        if ($result) {
+            $stmt = $this->db->prepare("SELECT nakes FROM service WHERE id=?");
+            $stmt->execute([$id]);
+            $nakesId = $stmt->fetch()['nakes'];
+            $this->api->notify($nakesId, "Layanan dibatalkan", "Layanan anda telah dibatalkan oleh klien.");
+        }
+
         return $this->api->result($result);
     }
 
@@ -273,116 +283,17 @@ class Service {
         $userId = $request->getAttribute('token')['id'];
         $id = $args['id'] ?? null;
         
-        $stmt = $this->db->prepare("UPDATE service SET status=3 WHERE id=:id AND nakes=:user");
+        $stmt = $this->db->prepare("UPDATE service SET status=3 WHERE id=:id AND nakes=:user AND status=1");
         $result = $stmt->execute([':id' => $id, ':user' => $userId]);
-        return $this->api->result($result);
-    }
 
-    function setStatus(Request $request, Response $response, array $args) {
-        $userId = $request->getAttribute('token')['id'];
-
-        // params
-        $id = $args['id'] ?? null;
-        $status = $request->getParsedBodyParam('status');
-
-        // id or status not valid
-        if (!$id || !$status)
-            return $this->api->fail('ID or status is not valid');
-        
-        // find service
-        $query = $this->db->prepare("SELECT user, nakes FROM service WHERE id=:id LIMIT 1");
-        $query->execute([':id' => $id]);
-        $service = $query->fetch();
-
-        if (!$service)
-            return $this->api->fail('Service not found.');
-
-        // update service
-        $query = $this->db->prepare("UPDATE service SET status=:status WHERE id=:id LIMIT 1");
-        $result = $query->execute([':id' => $id, ':status' => $this->getStatusIdByName($status)]);
-
-        if (!$result)
-            return $this->api->fail('Cannot update service');
-        
-        // push notification
-        $title = "Status layanan diubah";
-        $message = '';
-
-        switch ($status) {
-            case 'cancel':
-                $title = "Layanan dibatalkan";
-                $message = "membatalkan";
-                break;
-
-            case 'success':
-                $title = "Layanan selesai";
-                $message = "menyelesaikan";
-                break;
-
-            default:
-                break;
-        }
-        
-        // create notification
-        if (!empty($message)) {
-            $user = $service['user']; $nakes = $service['nakes'];
-            $message = ":OBJECT telah $message layanan #$id.";
-            $this->api->broadcast([$user, $nakes], $title, $message, $userId);
-        }
-
-        return $this->api->success();
-    }
-
-    private function updateNakes() {
-        $sql = "SELECT id, user, type, lat, lng FROM service WHERE nakes=0 AND status=0 LIMIT 10";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute();
-
-        foreach ($stmt->fetchAll() as $row) {
-            // update nakes
-            $this->findNakes($row['id'], $row['user'], $row['type'], $row['lat'], $row['lng']);
-        }
-    }
-
-    private function findNakes($id, $user, $type, $latitude, $longitude) {
-        // find nakes
-        $sql = "SELECT u.id, u.kategori_layanan, u.active, COUNT(s.id) as services,
-            (6371 * acos(cos(radians(:lat)) * cos(radians(u.lat)) * cos(radians(u.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(u.lat)))) AS distance
-            FROM users AS u
-            LEFT JOIN service AS s ON s.nakes=u.id AND s.status=1 GROUP BY u.id
-            HAVING u.id!=:user AND u.kategori_layanan=:type AND u.active=1 AND services < 1 AND distance < 200
-            ORDER BY distance LIMIT 1";
-        
-        // exec query
-        $query = $this->db->prepare($sql);
-        $query->execute([
-            ':user' => $user,
-            ':type' => $type,
-            ':lat'  => $latitude,
-            ':lng'  => $longitude
-        ]);
-        $result = $query->fetch();
-
-        // update caretaker
         if ($result) {
-            $nakes = $result['id'];
-            $stmt = $this->db->prepare("UPDATE service SET status=1, nakes=:nakes WHERE id=:id LIMIT 1");
-            $stmt->execute([':id' => $id, ':nakes' => $nakes]);
-            
-            // create notification
-            $nakesName = $this->api->getUserName($nakes);
-            $userMsg =  "$nakesName telah mengambil layanan #$id yang anda buat. ";
-            $userMsg .= "Silahkan hubungi nakes tersebut untuk info lanjut.";
-
-            $nakesMsg = "Anda telah mendapatkan layanan baru dengan id #$id. ";
-            $nakesMsg .= "Segera hubungi klien Anda untuk info lanjut.";
-
-            // notify both user and nakes
-            $this->api->notify($user, "Tenaga kesehatan ditemukan!", $userMsg);
-            $this->api->notify($nakes, "Layanan baru telah didapakan", $nakesMsg);
+            $stmt = $this->db->prepare("SELECT user FROM service WHERE id=?");
+            $stmt->execute([$id]);
+            $user = $stmt->fetch()['user'];
+            $this->api->notify($user, "Layanan selesai", "Sekarang anda dapat memberikan rating untuk menilai layanan yang diberikan.");
         }
 
-        return $result ? $result['id'] : 0;
+        return $this->api->result($result);
     }
 
     private function getCurrency($amount) {
