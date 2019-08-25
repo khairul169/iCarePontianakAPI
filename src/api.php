@@ -76,7 +76,7 @@ class API {
     }
 
     function getUserImageUrl($url) {
-        return $this->getUrl($this->settings['site']['imgurl'] . $url);
+        return $url != '' ? $this->getUrl($this->settings['site']['imgurl'] . $url) : false;
     }
 
     function getPasswordHash($password) {
