@@ -16,8 +16,8 @@ class Emergency {
     }
 
     function getLists(Request $request, Response $response, array $args) {
-        $stmt = $this->db->prepare("SELECT * FROM emergency WHERE time<? ORDER BY time DESC");
-        $stmt->execute([time() + 60 * 60 * 24]);
+        $stmt = $this->db->prepare("SELECT * FROM emergency WHERE ? < (time + (60 * 60 * 24)) ORDER BY time DESC");
+        $stmt->execute([time()]);
         $result = [];
 
         foreach ($stmt->fetchAll() as $row) {
