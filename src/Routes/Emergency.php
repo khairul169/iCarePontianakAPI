@@ -82,6 +82,12 @@ class Emergency {
         $stmt = $this->db->prepare($sql);
         $result = $stmt->execute($values);
 
+        // send notification to all users
+        if ($result) {
+            $jenisKejadian = $data['jenis'];
+            $this->api->pushNotification(null, "Gawat Darurat", "Seseorang telah membuat pesan darurat $jenisKejadian ! Lihat selengkapnya pada aplikasi.");
+        }
+
         return $this->api->result($result);
     }
 

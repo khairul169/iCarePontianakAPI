@@ -115,13 +115,22 @@ class API {
             return false;
         
         if (!empty($user['device_id'])) {
-            $title = empty($title) ? 'Pemberitahuan Layanan' : $title;
-            $this->onesignal->sendToId($user['device_id'], 'notification', $title, $message);
+            $this->pushNotification($user['device_id'], $title, $message);
         }
 
         /*$stmt = $this->db->prepare("INSERT INTO notification (user, content, timestamp) VALUES (:id, :msg, :time)");
         return $stmt->execute([':id' => $id, ':msg' => $message, ':time' => time()]);*/
         return true;
+    }
+
+    function pushNotification($deviceId, string $title, string $message) {
+        $title = empty($title) ? 'Pemberitahuan Layanan' : $title;
+        
+        if ($deviceId) {
+            $this->onesignal->sendToId($deviceId, 'notification', $title, $message);
+        } else {
+            $this->onesignal->sendToAll($title, $message);
+        }
     }
 
     function broadcast(array $users, string $title, string $message, $object = null) {

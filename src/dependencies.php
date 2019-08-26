@@ -30,7 +30,8 @@ return function (App $app) {
     // onesignal api
     $container['onesignal'] = function ($c) {
         $settings = $c->get('settings')['onesignal'];
-        $api = new OneSignalAPI($settings['appid']);
+        $api = new OneSignalAPI($settings['appid'], $settings['restApiKey']);
+        $api->setChannelId($settings['channelId']);
         return $api;
     };
 

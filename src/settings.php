@@ -44,7 +44,9 @@ return [
 
         // OneSignal API settings
         'onesignal' => [
-            'appid' => $_ENV['ONESIGNAL_APPID']
+            'appid' => $_ENV['ONESIGNAL_APPID'],
+            'restApiKey' => $_ENV['ONESIGNAL_KEY'],
+            'channelId' => "f9029cb4-0b5d-4691-9b8b-67754e3e5fd1"
         ],
 
         // Hash
