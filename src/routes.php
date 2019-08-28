@@ -9,6 +9,7 @@ require_once __DIR__ . '/Routes/Clients.php';
 require_once __DIR__ . '/Routes/Service.php';
 require_once __DIR__ . '/Routes/Notification.php';
 require_once __DIR__ . '/Routes/Emergency.php';
+require_once __DIR__ . '/Routes/Message.php';
 
 return function (App $app) {
     // authentication
@@ -58,5 +59,11 @@ return function (App $app) {
         $app->post('/', '\Emergency:create');
         $app->get('/view/{id}', '\Emergency:getById');
         $app->get('/ambulance', '\Emergency:getAmbulance');
+    });
+
+    // message
+    $app->group('/message', function(App $app) {
+        $app->get('/get/{id}', '\Message:getMessages');
+        $app->post('/', '\Message:create');
     });
 };
