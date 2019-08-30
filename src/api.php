@@ -92,15 +92,30 @@ class API {
         $stmt->execute([':id' => $id]);
         $result = $stmt->fetch();
 
+        if (!$result) {
+            return false;
+        }
+
         if (!empty($result['type'])) {
             $result['type'] = $this->getUserRole($result['type']);
         }
-
         if (!empty($result['image'])) {
             $result['image'] = $this->getUserImageUrl($result['image']);
         }
+        if (!empty($result['gender'])) {
+            $result['gender'] = $this->getGenderById($result['gender']);
+        }
 
+        // user rating
+        $result['rating'] = $this->getUserRatingSummary($id);
         return $result;
+    }
+
+    function getUserRatingSummary($userId) {
+        $stmt = $this->db->prepare('SELECT AVG(rating) AS average_rating,
+            COUNT(rating) AS rating_count FROM ratings WHERE user=?');
+        $stmt->execute([$userId]);
+        return $stmt->fetch();
     }
 
     function getUserName(int $id) {

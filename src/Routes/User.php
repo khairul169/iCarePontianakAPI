@@ -28,21 +28,12 @@ class User {
     }
 
     private function getUserInfo($id) {
-        // sql statement
-        $sql = "SELECT id, username, registered, type, name, phone, image, lat, lng, active, gender
-            FROM users WHERE id=:id";
-        $query = $this->db->prepare($sql);
-        $query->execute([':id' => $id]);
-
-        // result
-        $user = $query->fetch();
-
-        if ($user) {
-            $user['image'] = $user['image'] ? $this->api->getUserImageUrl($user['image']) : null;
-            $user['rating'] = $this->getRatingSummary($user['id']);
+        $user = $this->api->getUserById($id, 'id, username, registered, type, name, phone, image,
+            lat, lng, active, gender');
+        if (!$user) {
+            return $this->api->fail('User is not exists');
         }
-
-        return $user ? $this->api->success($user) : $this->api->fail("User not exists");
+        return $this->api->success($user);
     }
 
     function setData(Request $request, Response $response, array $args) {
@@ -108,7 +99,7 @@ class User {
         }
 
         $result = [
-            'summary' => $this->getRatingSummary($user),
+            'summary' => $this->api->getUserRatingSummary($user),
             'ratings' => $ratings
         ];
         return $this->api->success($result);
@@ -184,13 +175,6 @@ class User {
             return $this->setUserCol($userId, 'image', $userimg);
         }
         return $this->api->fail();
-    }
-
-    private function getRatingSummary($userId) {
-        $stmt = $this->db->prepare('SELECT AVG(rating) AS average_rating,
-            COUNT(rating) AS rating_count FROM ratings WHERE user=?');
-        $stmt->execute([$userId]);
-        return $stmt->fetch();
     }
 }
 

@@ -64,7 +64,7 @@ class Service {
         
         $exclusion = is_array($exclude) ? implode("','", array_map('intval', $exclude)) : '';
 
-        $sql = "SELECT u.id, u.type, u.name, u.image, u.pelayanan, u.active, u.gender,
+        $sql = "SELECT u.id, u.type, u.pelayanan, u.active,
             u.lat, u.lng,
             -- nakes service counts
             COUNT(s.id) as services,
@@ -92,9 +92,7 @@ class Service {
         $result = $query->fetch();
 
         if ($result) {
-            $result['type'] = $this->api->getUserRole($result['type']);
-            $result['image'] = $this->api->getUserImageUrl($result['image']);
-            $result['gender'] = $this->api->getGenderById($result['gender']);
+            $result['user'] = $this->api->getUserById($result['id'], 'name, image, gender');
             $result['distance'] = number_format($result['distance'], 1, ',', '') . ' km';
             $result['lat'] = (float) $result['lat'];
             $result['lng'] = (float) $result['lng'];
