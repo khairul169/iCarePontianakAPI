@@ -112,8 +112,8 @@ class API {
     }
 
     function getUserRatingSummary($userId) {
-        $stmt = $this->db->prepare('SELECT AVG(rating) AS average_rating,
-            COUNT(rating) AS rating_count FROM ratings WHERE user=?');
+        $stmt = $this->db->prepare('SELECT AVG(rating) AS average,
+            COUNT(rating) AS count FROM ratings WHERE user=?');
         $stmt->execute([$userId]);
         return $stmt->fetch();
     }
