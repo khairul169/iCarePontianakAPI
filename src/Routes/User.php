@@ -39,6 +39,7 @@ class User {
 
         if ($user) {
             $user['image'] = $user['image'] ? $this->api->getUserImageUrl($user['image']) : null;
+            $user['rating'] = $this->getRatingSummary($user['id']);
         }
 
         return $user ? $this->api->success($user) : $this->api->fail("User not exists");
@@ -64,6 +65,53 @@ class User {
             $this->selectSetData($userId, $type, $value);
         }
         return $this->api->success();
+    }
+
+    function addRating(Request $request, Response $response, array $args) {
+        // params
+        $userId = $request->getAttribute('token')['id'];
+        $user = $args['id'] ?? 0;
+        $rating = $request->getParsedBodyParam('rating', 0);
+        $message = $request->getParsedBodyParam('message', '');
+
+        if (!$user || !$rating || empty($message)) {
+            return $this->api->fail('Input ada yg kosong');
+        }
+
+        // insert data
+        $stmt = $this->db->prepare('INSERT INTO ratings
+            (user, giver, rating, message, time)
+            VALUES (?, ?, ?, ?, ?)');
+        $result = $stmt->execute([
+            $user,
+            $userId,
+            $rating,
+            $message,
+            time()
+        ]);
+
+        return $this->api->result($result);
+    }
+
+    function getRating(Request $request, Response $response, array $args) {
+        $user = $args['id'] ?? 0;
+
+        // fetch ratings
+        $stmt = $this->db->prepare('SELECT * FROM ratings WHERE user=? ORDER BY id DESC LIMIT 20');
+        $stmt->execute([$user]);
+        $ratings = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $row['giver'] = $this->api->getUserById($row['giver'], 'id, name, image');
+            $row['time'] = strftime('%e %B %Y %H.%M', $row['time']);
+            $ratings[] = $row;
+        }
+
+        $result = [
+            'summary' => $this->getRatingSummary($user),
+            'ratings' => $ratings
+        ];
+        return $this->api->success($result);
     }
 
     private function selectSetData($userId, $type, $value) {
@@ -136,6 +184,13 @@ class User {
             return $this->setUserCol($userId, 'image', $userimg);
         }
         return $this->api->fail();
+    }
+
+    private function getRatingSummary($userId) {
+        $stmt = $this->db->prepare('SELECT AVG(rating) AS average_rating,
+            COUNT(rating) AS rating_count FROM ratings WHERE user=?');
+        $stmt->execute([$userId]);
+        return $stmt->fetch();
     }
 }
 

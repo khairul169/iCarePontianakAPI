@@ -17,7 +17,7 @@ class Service {
 
     function getCategories(Request $request, Response $response, array $args) {
         $result = [];
-        $stmt = $this->db->prepare("SELECT id, name, icon FROM service_categories");
+        $stmt = $this->db->prepare("SELECT id, name, icon FROM layanan");
         $stmt->execute();
 
         foreach ($stmt->fetchAll() as $row) {
@@ -30,14 +30,14 @@ class Service {
 
     function getCategory(Request $request, Response $response, array $args) {
         $categoryId = !empty($args['id']) ? intval($args['id']) : 0;
-        $sql = "SELECT id, name FROM service_categories WHERE id=:id";
+        $sql = "SELECT id, name FROM layanan WHERE id=:id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $categoryId]);
         $result = $stmt->fetch();
 
         // fetch actions
         if ($result) {
-            $sql = "SELECT id, name, cost FROM service_actions WHERE category=:id ORDER BY name ASC";
+            $sql = "SELECT id, name, cost FROM tindakan WHERE category=:id ORDER BY name ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':id' => $categoryId]);
             $tindakan = [];
@@ -306,7 +306,7 @@ class Service {
 
         if (is_array($tindakan)) {
             $inQuery = join(',', array_fill(0, count($tindakan), '?'));
-            $sql = "SELECT id, name, cost FROM service_actions WHERE id IN ($inQuery)";
+            $sql = "SELECT id, name, cost FROM tindakan WHERE id IN ($inQuery)";
             $stmt = $this->db->prepare($sql);
             $stmt->execute($tindakan);
             
@@ -328,7 +328,7 @@ class Service {
 
         if (is_array($tindakan)) {
             $inQuery = join(',', array_fill(0, count($tindakan), '?'));
-            $sql = "SELECT cost FROM service_actions WHERE id IN ($inQuery)";
+            $sql = "SELECT cost FROM tindakan WHERE id IN ($inQuery)";
             $stmt = $this->db->prepare($sql);
             $stmt->execute($tindakan);
             

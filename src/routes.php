@@ -25,6 +25,8 @@ return function (App $app) {
         $app->get('/{id}', '\User:getUser');
         $app->patch('/', '\User:setDataMulti');
         $app->patch('/{type}', '\User:setData');
+        $app->post('/{id}/rating', '\User:addRating');
+        $app->get('/{id}/rating', '\User:getRating');
     });
 
     // clients
