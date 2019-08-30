@@ -17,12 +17,16 @@ class Message {
 
     function getMessageList(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
-        $stmt = $this->db->prepare('SELECT * FROM messages WHERE sender=? GROUP BY receiver ORDER BY id DESC');
+        $stmt = $this->db->prepare('SELECT * FROM (
+            SELECT * FROM messages WHERE sender=? ORDER BY id DESC
+            LIMIT 18446744073709551615
+        ) AS sub GROUP BY sub.receiver');
         $stmt->execute([$userId]);
         $result = [];
 
         foreach ($stmt->fetchAll() as $row) {
-            $row['receiver'] = $this->api->getUserById($row['receiver'], 'name, image');
+            $row['receiver'] = $this->api->getUserById($row['receiver'], 'id, name, image');
+            $row['time'] = strftime('%e %B %Y %H:%M', $row['time']);
             $result[] = $row;
         }
         return $this->api->result($result);
