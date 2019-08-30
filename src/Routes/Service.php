@@ -388,7 +388,7 @@ class Service {
 
         $biayaTindakan = $this->getTotalBiayaTindakan($layanan['tindakan']);
         $totalBiaya = $biayaTindakan;
-        $biayaJalan = $jarak * 5000;
+        $biayaJalan = $jarak * 1000;
         $totalBiaya += $biayaJalan;
         $pajak = $totalBiaya * 0.05;
         $totalBiaya += $pajak;
