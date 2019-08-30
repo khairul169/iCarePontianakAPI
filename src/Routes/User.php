@@ -64,21 +64,30 @@ class User {
         $user = $args['id'] ?? 0;
         $rating = $request->getParsedBodyParam('rating', 0);
         $message = $request->getParsedBodyParam('message', '');
+        $ref = $request->getParsedBodyParam('ref', 0);
 
-        if (!$user || !$rating || empty($message)) {
+        if (!$user || !$rating || empty($message) || !$ref) {
             return $this->api->fail('Input ada yg kosong');
+        }
+
+        $stmt = $this->db->prepare('SELECT id FROM ratings WHERE user=? AND ref=? LIMIT 1');
+        $stmt->execute([$user, $ref]);
+
+        if ($stmt->fetch()) {
+            return $this->api->fail('Ref duplikat');
         }
 
         // insert data
         $stmt = $this->db->prepare('INSERT INTO ratings
-            (user, giver, rating, message, time)
-            VALUES (?, ?, ?, ?, ?)');
+            (user, giver, rating, message, time, ref)
+            VALUES (?, ?, ?, ?, ?, ?)');
         $result = $stmt->execute([
             $user,
             $userId,
             $rating,
             $message,
-            time()
+            time(),
+            $ref
         ]);
 
         return $this->api->result($result);

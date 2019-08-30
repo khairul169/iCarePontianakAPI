@@ -235,8 +235,9 @@ class Service {
             'longitude' => (float) $lokasiNakes['lng'],
         ] : false;
 
-        // rincian biaya
+        // misc
         $biaya = $this->getRincianBiaya($row['id'], $lokasiNakes);
+        $giveRating = $row['status'] == 3 && $this->canGiveRating($userId, $row['id']);
 
         $item = [
             'id' => $row['id'],
@@ -254,7 +255,8 @@ class Service {
             'waktu' => $waktu,
             'isClient' => $client,
             'lokasiNakes' => $lokasiNakes,
-            'biaya' => $biaya
+            'biaya' => $biaya,
+            'giveRating' => $giveRating
         ];
 
         return $this->api->success($item);
@@ -408,6 +410,12 @@ class Service {
                 ],
             'total' => $this->getCurrency($totalBiaya)
         ];
+    }
+
+    private function canGiveRating($userId, $id) {
+        $stmt = $this->db->prepare('SELECT id FROM ratings WHERE giver=? AND ref=? LIMIT 1');
+        $stmt->execute([$userId, $id]);
+        return $stmt->fetch() ? false : true;
     }
 }
 ?>
