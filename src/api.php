@@ -115,7 +115,13 @@ class API {
         $stmt = $this->db->prepare('SELECT AVG(rating) AS average,
             COUNT(rating) AS count FROM ratings WHERE user=?');
         $stmt->execute([$userId]);
-        return $stmt->fetch();
+        $result = $stmt->fetch();
+
+        if ($result) {
+            $result['average'] = (float) $result['average'];
+            $result['count'] = (int) $result['count'];
+        }
+        return $result;
     }
 
     function getUserName(int $id) {
