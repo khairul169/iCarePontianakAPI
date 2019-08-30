@@ -63,7 +63,8 @@ return function (App $app) {
 
     // message
     $app->group('/message', function(App $app) {
-        $app->get('/get/{id}', '\Message:getMessages');
+        $app->get('/lists', '\Message:getMessageList');
+        $app->get('/get/{id}', '\Message:getUserMessages');
         $app->post('/', '\Message:create');
     });
 };

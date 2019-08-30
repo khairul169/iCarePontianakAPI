@@ -15,7 +15,20 @@ class Message {
         $this->api = $c->get('api');
     }
 
-    function getMessages(Request $request, Response $response, array $args) {
+    function getMessageList(Request $request, Response $response, array $args) {
+        $userId = $request->getAttribute('token')['id'];
+        $stmt = $this->db->prepare('SELECT * FROM messages WHERE sender=? GROUP BY receiver ORDER BY id DESC');
+        $stmt->execute([$userId]);
+        $result = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $row['receiver'] = $this->api->getUserById($row['receiver'], 'name, image');
+            $result[] = $row;
+        }
+        return $this->api->result($result);
+    }
+
+    function getUserMessages(Request $request, Response $response, array $args) {
         $userId = $request->getAttribute('token')['id'];
         $id = $args['id'] ?? 0;
 
