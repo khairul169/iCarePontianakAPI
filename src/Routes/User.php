@@ -90,6 +90,12 @@ class User {
             $ref
         ]);
 
+        if ($result) {
+            $giverName = $this->api->getUserById($userId, 'name');
+            $giverName = $giverName ? $giverName['name'] : 'Seseorang';
+            $this->api->notify($user, 'Penilaian baru', "$giverName telah memberikan penilaian dengan pesan '$message'!");
+        }
+
         return $this->api->result($result);
     }
 
