@@ -92,7 +92,7 @@ class Service {
         $result = $query->fetch();
 
         if ($result) {
-            $result['user'] = $this->api->getUserById($result['id'], 'name, image, gender');
+            $result['user'] = $this->api->getUserById($result['id'], 'name, type, image, gender');
             $result['distance'] = number_format($result['distance'], 1, ',', '') . ' km';
             $result['lat'] = (float) $result['lat'];
             $result['lng'] = (float) $result['lng'];
