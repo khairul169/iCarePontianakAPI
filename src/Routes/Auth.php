@@ -26,10 +26,13 @@ class Auth {
         $fullname = $request->getParsedBodyParam('fullname');
 
         if (empty($username) || empty($password) || empty($fullname))
-            return $this->api->fail('Some input is empty');
+            return $this->api->fail('Kolom input belum terisi semua');
         
-        if (strlen($username) < 6 || strlen($password) < 6)
-            return $this->api->fail('Username or Password is weak');
+        if (!$this->validate_username($username))
+            return $this->api->fail('Nama Pengguna minimal 6 angka/huruf dan tidak menggunakan simbol/spasi');
+        
+        if (strlen($password) < 6)
+            return $this->api->fail('Kata Sandi minimal 6 angka/huruf');
         
         // generate password hash
         $password = $this->api->getPasswordHash($password);
@@ -40,7 +43,7 @@ class Auth {
 
         // username taken
         if ($stmt->fetch())
-            return $this->api->fail('Username already taken');
+            return $this->api->fail('Nama Pengguna sudah terpakai');
 
         // create user
         $stmt = $this->db->prepare("INSERT INTO users (username, password, registered, name) VALUES (:user, :pass, :reg, :name)");
@@ -52,7 +55,7 @@ class Auth {
         ]);
 
         if (!$result)
-            return $this->api->fail('Cannot register user');
+            return $this->api->fail('Gagal mendaftar');
 
         // generate user token
         $userId = $this->db->lastInsertId();
@@ -68,7 +71,7 @@ class Auth {
         $password = $request->getParsedBodyParam('password');
 
         if (empty($username) || empty($password))
-            return $this->api->fail('Username or Password is empty');
+            return $this->api->fail('Nama Pengguna atau Kata Sandi kosong');
 
         // try login
         $stmt = $this->db->prepare("SELECT id, password FROM users WHERE username=:user LIMIT 1");
@@ -76,11 +79,11 @@ class Auth {
         $user = $stmt->fetch();
 
         if (!$user)
-            return $this->api->fail('User not found');
+            return $this->api->fail('Nama Pengguna tidak ditemukan');
 
         // verify password hash
         if (!$this->api->verifyPassword($password, $user['password']))
-            return $this->api->fail('Wrong password');
+            return $this->api->fail('Kata Sandi salah');
 
         // return token
         $token = $this->generateToken($user['id']);
@@ -115,6 +118,10 @@ class Auth {
         // token is valid
         $newToken = $this->generateToken((int) $result['id']);
         return $this->api->success(['token' => $newToken]);
+    }
+
+    private function validate_username($username) {
+        return preg_match('/^[a-zA-Z0-9]{6,}$/', $username);
     }
 
     private function generateToken(int $userId) {
